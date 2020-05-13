@@ -18,6 +18,8 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torchvision.transforms as T
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
+
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -33,7 +35,7 @@ def select_action(state):
     steps_done += 1
     if sample > eps_threshold:
         with torch.no_grad():
-            return policy_net(state.to('cuda')).max(1)[1].view(1,1)
+            return policy_net(state.to(device)).max(1)[1].view(1,1)
     else:
         return torch.tensor([[random.randrange(4)]], device=device, dtype=torch.long)
 
@@ -52,18 +54,17 @@ def optimize_model():
     """
     batch = Transition(*zip(*transitions))
     
-    actions = tuple((map(lambda a: torch.tensor([[a]], device='cuda'), batch.action))) 
-    rewards = tuple((map(lambda r: torch.tensor([r], device='cuda'), batch.reward))) 
+    actions = tuple((map(lambda a: torch.tensor([[a]], device=device), batch.action)))
+    rewards = tuple((map(lambda r: torch.tensor([r], device=device), batch.reward)))
 
     non_final_mask = torch.tensor(
         tuple(map(lambda s: s is not None, batch.next_state)),
         device=device, dtype=torch.uint8)
     
     non_final_next_states = torch.cat([s for s in batch.next_state
-                                       if s is not None]).to('cuda')
-    
+                                       if s is not None]).to(device)
 
-    state_batch = torch.cat(batch.state).to('cuda')
+    state_batch = torch.cat(batch.state).to(device)
     action_batch = torch.cat(actions)
     reward_batch = torch.cat(rewards)
     
@@ -172,7 +173,7 @@ if __name__ == '__main__':
     INITIAL_MEMORY = 10000
     MEMORY_SIZE = 10 * INITIAL_MEMORY
 
-    resume = True
+    resume = False
 
 
     # create networks
