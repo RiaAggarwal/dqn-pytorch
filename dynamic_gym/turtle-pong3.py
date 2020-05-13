@@ -125,12 +125,7 @@ while True:
             paddle_a_up()
         else:
             paddle_a_down()
-'''
-    if paddle_b.ycor() < ball.ycor() + np.random.normal(0,150):
-        paddle_b_up()
-    else:
-        paddle_b_down()
-'''
+
     if np.random.rand() < 0.1:
         pen2.clear()
         pen2.write('left:{} ball:({:.2f},{:.2f}) right:{}'.format(paddle_a.ycor(), ball.xcor(), ball.ycor(), paddle_b.ycor()), align='center', font=('Courier',24,'normal'))
