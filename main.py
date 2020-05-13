@@ -18,6 +18,9 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torchvision.transforms as T
 
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
+
 Transition = namedtuple('Transion', 
                         ('state', 'action', 'next_state', 'reward'))
 
@@ -123,7 +126,7 @@ def train(env, n_episodes, render=False):
     return
 
 def test(env, n_episodes, policy, render=True):
-    env = gym.wrappers.Monitor(env, './videos/' + 'dqn_pong_video')
+    env = gym.wrappers.Monitor(env, './videos/' + 'dqn_pong_video',force=True)
     for episode in range(n_episodes):
         obs = env.reset()
         state = get_state(obs)
@@ -169,6 +172,9 @@ if __name__ == '__main__':
     INITIAL_MEMORY = 10000
     MEMORY_SIZE = 10 * INITIAL_MEMORY
 
+    resume = True
+
+
     # create networks
     policy_net = DQN(n_actions=4).to(device)
     target_net = DQN(n_actions=4).to(device)
@@ -176,6 +182,14 @@ if __name__ == '__main__':
 
     # setup optimizer
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)
+
+
+    if(resume):
+        checkpoint = torch.load("dqn_pong_model" ,map_location=device)
+        policy_net.load_state_dict(checkpoint['Net'])
+        optimizer.load_state_dict(checkpoint['Optimizer'])
+        target_net.load_state_dict(policy_net.state_dict())
+
 
     steps_done = 0
 
@@ -187,8 +201,10 @@ if __name__ == '__main__':
     memory = ReplayMemory(MEMORY_SIZE)
     
     # train model
-    train(env, 400)
-    torch.save(policy_net, "dqn_pong_model")
-    policy_net = torch.load("dqn_pong_model")
+    train(env, 2000)
+    torch.save({'Net':policy_net.state_dict(), 'Optimizer':optimizer.state_dict()}, "dqn_pong_model")
+    #policy_net = torch.load("dqn_pong_model")
+    checkpoint = torch.load("dqn_pong_model" ,map_location=device)
+    policy_net.load_state_dict(checkpoint['Net'])
     test(env, 1, policy_net, render=False)
 
