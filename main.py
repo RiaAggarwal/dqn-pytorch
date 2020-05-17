@@ -18,7 +18,6 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torchvision.transforms as T
 
-# import dynamic_gym as gym
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
@@ -39,7 +38,9 @@ def select_action(state):
         with torch.no_grad():
             return policy_net(state.to(device)).max(1)[1].view(1,1)
     else:
-        return torch.tensor([[random.randrange(4)]], device=device, dtype=torch.long)
+        # TODO: remove hard-coded action space dimension
+        # TODO: should this just go the the CPU?
+        return torch.tensor([[random.randrange(3)]], device=device, dtype=torch.long)
 
     
 def optimize_model():
@@ -135,7 +136,7 @@ def test(env, n_episodes, policy, render=True):
         state = get_state(obs)
         total_reward = 0.0
         for t in count():
-            action = policy(state.to('cuda')).max(1)[1].view(1,1)
+            action = policy(state.to(device)).max(1)[1].view(1,1)
 
             if render:
                 env.render()
@@ -160,9 +161,6 @@ def test(env, n_episodes, policy, render=True):
     return
 
 if __name__ == '__main__':
-    # set device
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
     # hyperparameters
     BATCH_SIZE = 32
     GAMMA = 0.99
@@ -179,8 +177,9 @@ if __name__ == '__main__':
 
 
     # create networks
-    policy_net = DQN(n_actions=4).to(device)
-    target_net = DQN(n_actions=4).to(device)
+    # TODO: don't hard-code n_actions
+    policy_net = DQN(n_actions=3).to(device)
+    target_net = DQN(n_actions=3).to(device)
     target_net.load_state_dict(policy_net.state_dict())
 
     # setup optimizer
@@ -197,8 +196,9 @@ if __name__ == '__main__':
     steps_done = 0
 
     # create environment
-    env = gym.make("PongNoFrameskip-v4")
-    env = make_env(env)
+    # env = gym.make("PongNoFrameskip-v4")
+    env = gym.make("gym_dynamic_pong:dynamic-pong-v0")
+    env = make_env(env, episodic_life=True, clip_rewards=True)
 
     # initialize replay memory
     memory = ReplayMemory(MEMORY_SIZE)
