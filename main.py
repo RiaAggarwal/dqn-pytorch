@@ -1,48 +1,37 @@
-import copy
-from collections import namedtuple
-from itertools import count
 import math
 import random
-import numpy as np 
 import time
+from collections import namedtuple
+from itertools import count
+import warnings
 
-import gym
-
-from wrappers import *
 from memory import ReplayMemory
 from models import *
-
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import torchvision.transforms as T
-
+from wrappers import *
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
-import warnings
+
 warnings.filterwarnings("ignore", category=UserWarning)
 
-Transition = namedtuple('Transion', 
+Transition = namedtuple('Transion',
                         ('state', 'action', 'next_state', 'reward'))
 
 
 def select_action(state):
     global steps_done
     sample = random.random()
-    eps_threshold = EPS_END + (EPS_START - EPS_END)* \
-        math.exp(-1. * steps_done / EPS_DECAY)
+    eps_threshold = EPS_END + (EPS_START - EPS_END) * \
+                    math.exp(-1. * steps_done / EPS_DECAY)
     steps_done += 1
     if sample > eps_threshold:
         with torch.no_grad():
-            return policy_net(state.to(device)).max(1)[1].view(1,1)
+            return policy_net(state.to(device)).max(1)[1].view(1, 1)
     else:
-        # TODO: remove hard-coded action space dimension
         # TODO: should this just go the the CPU?
-        return torch.tensor([[random.randrange(3)]], device=device, dtype=torch.long)
+        return torch.tensor([[random.randrange(env.action_space.n)]], device=device, dtype=torch.long)
 
-    
+
 def optimize_model():
     if len(memory) < BATCH_SIZE:
         return
@@ -56,40 +45,42 @@ def optimize_model():
     batch.action - tuple of all the actions (each action is an int)    
     """
     batch = Transition(*zip(*transitions))
-    
+
     actions = tuple((map(lambda a: torch.tensor([[a]], device=device), batch.action)))
     rewards = tuple((map(lambda r: torch.tensor([r], device=device), batch.reward)))
 
     non_final_mask = torch.tensor(
         tuple(map(lambda s: s is not None, batch.next_state)),
         device=device, dtype=torch.uint8)
-    
+
     non_final_next_states = torch.cat([s for s in batch.next_state
                                        if s is not None]).to(device)
 
     state_batch = torch.cat(batch.state).to(device)
     action_batch = torch.cat(actions)
     reward_batch = torch.cat(rewards)
-    
+
     state_action_values = policy_net(state_batch).gather(1, action_batch)
-    
+
     next_state_values = torch.zeros(BATCH_SIZE, device=device)
     next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
-    
+
     loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
-    
+
     optimizer.zero_grad()
     loss.backward()
     for param in policy_net.parameters():
         param.grad.data.clamp_(-1, 1)
     optimizer.step()
 
+
 def get_state(obs):
     state = np.array(obs)
     state = state.transpose((2, 0, 1))
     state = torch.from_numpy(state)
     return state.unsqueeze(0)
+
 
 def train(env, n_episodes, render=False):
     for episode in range(n_episodes):
@@ -125,18 +116,19 @@ def train(env, n_episodes, render=False):
             if done:
                 break
         if episode % 20 == 0:
-                print('Total steps: {} \t Episode: {}/{} \t Total reward: {}'.format(steps_done, episode, t, total_reward))
+            print('Total steps: {} \t Episode: {}/{} \t Total reward: {}'.format(steps_done, episode, t, total_reward))
     env.close()
     return
 
+
 def test(env, n_episodes, policy, render=True):
-    env = gym.wrappers.Monitor(env, './videos/' + 'dqn_pong_video',force=True)
+    env = gym.wrappers.Monitor(env, './videos/' + 'dqn_pong_video', force=True)
     for episode in range(n_episodes):
         obs = env.reset()
         state = get_state(obs)
         total_reward = 0.0
         for t in count():
-            action = policy(state.to(device)).max(1)[1].view(1,1)
+            action = policy(state.to(device)).max(1)[1].view(1, 1)
 
             if render:
                 env.render()
@@ -160,6 +152,7 @@ def test(env, n_episodes, policy, render=True):
     env.close()
     return
 
+
 if __name__ == '__main__':
     # hyperparameters
     BATCH_SIZE = 32
@@ -168,46 +161,55 @@ if __name__ == '__main__':
     EPS_END = 0.02
     EPS_DECAY = 1000000
     TARGET_UPDATE = 1000
-    RENDER = False
+    RENDER = True
     lr = 1e-4
     INITIAL_MEMORY = 10000
     MEMORY_SIZE = 10 * INITIAL_MEMORY
 
     resume = False
 
+    # create environment
+    # env = gym.make("PongNoFrameskip-v4")
+    env = gym.make(
+        "gym_dynamic_pong:dynamic-pong-v0",
+        max_score=20,
+        width=400,
+        height=300,
+        default_speed=3,
+        snell_speed=3,
+        our_paddle_speed=3,
+        their_paddle_speed=3,
+        our_paddle_height=45,
+        their_paddle_height=45,
+    )
+    # TODO: consider removing some of the wrappers - may improve performance
+    env = make_env(env, episodic_life=True, clip_rewards=True)
 
     # create networks
-    # TODO: don't hard-code n_actions
-    policy_net = DQN(n_actions=3).to(device)
-    target_net = DQN(n_actions=3).to(device)
+    policy_net = DQN(n_actions=env.action_space.n).to(device)
+    target_net = DQN(n_actions=env.action_space.n).to(device)
     target_net.load_state_dict(policy_net.state_dict())
 
     # setup optimizer
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)
 
-
-    if(resume):
-        checkpoint = torch.load("dqn_pong_model" ,map_location=device)
+    if (resume):
+        checkpoint = torch.load("dqn_pong_model", map_location=device)
         policy_net.load_state_dict(checkpoint['Net'])
         optimizer.load_state_dict(checkpoint['Optimizer'])
         target_net.load_state_dict(policy_net.state_dict())
 
-
     steps_done = 0
-
-    # create environment
-    # env = gym.make("PongNoFrameskip-v4")
-    env = gym.make("gym_dynamic_pong:dynamic-pong-v0")
-    env = make_env(env, episodic_life=True, clip_rewards=True)
 
     # initialize replay memory
     memory = ReplayMemory(MEMORY_SIZE)
-    
-    # train model
-    train(env, 2000)
-    torch.save({'Net':policy_net.state_dict(), 'Optimizer':optimizer.state_dict()}, "dqn_pong_model")
-    #policy_net = torch.load("dqn_pong_model")
-    checkpoint = torch.load("dqn_pong_model" ,map_location=device)
-    policy_net.load_state_dict(checkpoint['Net'])
-    test(env, 1, policy_net, render=False)
 
+    # train model
+    train(env, 2000, render=RENDER)
+    torch.save({'Net': policy_net.state_dict(), 'Optimizer': optimizer.state_dict()}, "dqn_pong_model")
+    # policy_net = torch.load("dqn_pong_model")
+    checkpoint = torch.load("dqn_pong_model", map_location=device)
+    policy_net.load_state_dict(checkpoint['Net'])
+    test(env, 1, policy_net, render=RENDER)
+
+    # TODO: set up command line arguments for all the various configuration variables
