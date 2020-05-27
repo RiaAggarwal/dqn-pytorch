@@ -4,6 +4,7 @@ import time
 from collections import namedtuple
 from itertools import count
 import warnings
+import argparse
 
 from underwater_rl.memory import ReplayMemory
 from underwater_rl.models import *
@@ -154,6 +155,26 @@ def test(env, n_episodes, policy, render=True):
 
 
 if __name__ == '__main__':
+    # arguments
+    parser = argparse.ArgumentParser(description='Dynamic Pong RL')
+    parser.add_argument('--width', default=160, type=int, 
+                        help='canvas width (default: 160)')
+    parser.add_argument('--height', default=160, type=int,
+                        help='canvas height (default: 160)')
+    parser.add_argument('--ball', default=3.0, type=float,
+                        help='ball speed (default: 3.0)')
+    parser.add_argument('--snell', default=3.0, type=float,
+                        help='snell speed (default: 3.0)')
+    parser.add_argument('--ps','--paddle-speed', default=3.0, type=float,
+                        help='paddle speed (default: 3.0)')
+    parser.add_argument('--pl','--paddle-length', default=45, type=int,
+                        help='paddle length (default: 45)')
+    parser.add_argument('--lr','--learning-rate', default=1e-4, type=float,
+                        help='learning rate (default: 1e-4)')
+
+    args = parser.parse_args()
+    parser.print_help()
+    
     # hyperparameters
     BATCH_SIZE = 32
     GAMMA = 0.99
@@ -173,14 +194,14 @@ if __name__ == '__main__':
     env = gym.make(
         "gym_dynamic_pong:dynamic-pong-v0",
         max_score=20,
-        width=400,
-        height=300,
-        default_speed=3,
-        snell_speed=2,
-        our_paddle_speed=3,
-        their_paddle_speed=3,
-        our_paddle_height=45,
-        their_paddle_height=45,
+        width=args.width,
+        height=args.height,
+        default_speed=args.ball,
+        snell_speed=args.snell,
+        our_paddle_speed=args.ps,
+        their_paddle_speed=args.ps,
+        our_paddle_height=args.pl,
+        their_paddle_height=args.pl,
     )
     # TODO: consider removing some of the wrappers - may improve performance
     env = make_env(env, episodic_life=True, clip_rewards=True)
