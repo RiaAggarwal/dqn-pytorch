@@ -5,9 +5,9 @@ from collections import namedtuple
 from itertools import count
 import warnings
 
-from memory import ReplayMemory
-from models import *
-from wrappers import *
+from underwater_rl.memory import ReplayMemory
+from underwater_rl.models import *
+from underwater_rl.wrappers import *
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
@@ -161,7 +161,7 @@ if __name__ == '__main__':
     EPS_END = 0.02
     EPS_DECAY = 1000000
     TARGET_UPDATE = 1000
-    RENDER = True
+    RENDER = False
     lr = 1e-4
     INITIAL_MEMORY = 10000
     MEMORY_SIZE = 10 * INITIAL_MEMORY
@@ -176,7 +176,7 @@ if __name__ == '__main__':
         width=400,
         height=300,
         default_speed=3,
-        snell_speed=3,
+        snell_speed=2,
         our_paddle_speed=3,
         their_paddle_speed=3,
         our_paddle_height=45,
