@@ -6,9 +6,9 @@ from itertools import count
 import warnings
 import argparse
 
-from memory import ReplayMemory
-from models import *
-from wrappers import *
+from underwater_rl.memory import ReplayMemory
+from underwater_rl.models import *
+from underwater_rl.wrappers import *
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
@@ -182,8 +182,8 @@ if __name__ == '__main__':
     EPS_END = 0.02
     EPS_DECAY = 1000000
     TARGET_UPDATE = 1000
-    RENDER = True
-    lr = args.lr
+    RENDER = False
+    lr = 1e-4
     INITIAL_MEMORY = 10000
     MEMORY_SIZE = 10 * INITIAL_MEMORY
 
