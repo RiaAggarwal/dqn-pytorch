@@ -80,8 +80,8 @@ class Paddle(Rectangle):
 
 class Ball(Rectangle):
     def __init__(self, max_height, max_width):
-        super().__init__(max_height=max_height, max_width=max_width, width=5, height=5)
-        self._angle = (random.random() - 0.5) * (math.pi / 3)
+        super().__init__(max_height=max_height, max_width=max_width, width=2, height=2)
+        self._angle = math.pi - (random.random() - 0.5) * (math.pi / 3)
 
     def reset(self):
         self._angle = (random.random() - 0.5) * (math.pi / 3)
@@ -217,7 +217,7 @@ class Canvas:
     def step(self, action):
         self._move_our_paddle(action)
         self._step_their_paddle()
-        self._step_ball()
+        return self._step_ball()
 
     def get_state_size(self) -> Tuple[int, int]:
         """
@@ -253,10 +253,13 @@ class Canvas:
         trajectory = Line(self.ball.pos, new_pos)
 
         result = self._get_first_intersection(trajectory)
+        reward = 0
         if result is None:  # No intersection
             self.ball.pos = new_pos
         else:
-            self._interaction_dispatcher(*result, trajectory)
+            reward = self._interaction_dispatcher(*result, trajectory)
+
+        return reward
 
     def _interaction_dispatcher(self, obj: Union[str, Paddle, Snell], edge: str, point: Point, line: Line,
                                 trajectory: Line):
@@ -270,12 +273,15 @@ class Canvas:
         :param point: the point of interaction
         """
         assert edge in ['top', 'bottom', 'left', 'right']
+        reward = 0
         if obj == 'border':
-            self._interact_border(edge, point, trajectory)
+            reward = self._interact_border(edge, point, trajectory)
         elif obj is self.paddle_l or obj is self.paddle_r:
             self._interact_paddle(obj, point, trajectory)
         elif obj is self.snell:
             self._refract(point, trajectory, line)
+
+        return reward
 
     def _interact_paddle(self, paddle: Paddle, point: Point, trajectory: Line):
         paddle_fraction = paddle.get_fraction_of_paddle(point)
@@ -283,7 +289,7 @@ class Canvas:
         angle = math.pi - angle if self.ball.unit_velocity.x > 0 else angle
 
         self.ball.angle = angle
-        self._finish_step_ball(point, trajectory)
+        return self._finish_step_ball(point, trajectory)
 
     def _refract(self, point: Point, trajectory: Line, boundary: Line):
         if self.snell.is_in(trajectory.start):
@@ -302,17 +308,20 @@ class Canvas:
                 return
         new_angle = math.asin(s1 / s0 * math.sin(angle))
         self.ball.angle -= angle - new_angle
-        self._finish_step_ball(point, trajectory)
+        return self._finish_step_ball(point, trajectory)
 
     def _interact_border(self, edge: str, point: Point, trajectory: Line):
+        reward = 0
         if edge in ['top', 'bottom']:
             self._reflect(Point(1, -1), point, trajectory)
         elif edge == 'left':
-            self.score('we')
+            reward = self.score('we')
         elif edge == 'right':
-            self.score('they')
+            reward = self.score('they')
         else:
             raise ValueError(f'invalid edge, {edge}')
+
+        return reward
 
     def _reflect(self, direction: Point, point: Point, trajectory: Line):
         """
@@ -323,12 +332,12 @@ class Canvas:
         :param trajectory: The original trajectory of the ball
         """
         self.ball.unit_velocity *= direction
-        self._finish_step_ball(point, trajectory)
+        return self._finish_step_ball(point, trajectory)
 
     def _finish_step_ball(self, point, trajectory):
         self.ball.pos = point + self.ball.unit_velocity * EPSILON
         remaining_speed = point.l2_distance(trajectory.end)
-        self._step_ball(remaining_speed)
+        return self._step_ball(remaining_speed)
 
     def _get_first_intersection(self, trajectory: Line) -> Union[Tuple[Any, str, Point], None]:
         """
@@ -402,21 +411,19 @@ class DynamicPongEnv(gym.Env):
         :param action:
         :return: (data, reward, episode_over, info)
         """
-        self.env.step(action)
+        reward = self.env.step(action)
         self.frame = self.env.to_numpy()
-        reward, episode_over = self.episode_is_over()
-        return bool_array_to_rgb(self.frame), reward, episode_over, {}  # {} is a generic info dictionary
+        return bool_array_to_rgb(self.frame), reward, self.episode_is_over(), {}  # {} is a generic info dictionary
 
     def episode_is_over(self):
         """
         :returns: True if the episode is over
         """
         if self.env.their_score == self.max_score or self.env.our_score == self.max_score:
-            reward = self.env.our_score - self.env.their_score
             self.reset()
-            return reward, True
+            return True
         else:
-            return 0, False
+            return False
 
     def reset(self):
         self._initialize_env()
