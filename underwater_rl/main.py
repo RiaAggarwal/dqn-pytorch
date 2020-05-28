@@ -12,7 +12,6 @@ from underwater_rl.wrappers import *
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
-
 warnings.filterwarnings("ignore", category=UserWarning)
 
 Transition = namedtuple('Transion',
@@ -157,7 +156,7 @@ def test(env, n_episodes, policy, render=True):
 if __name__ == '__main__':
     # arguments
     parser = argparse.ArgumentParser(description='Dynamic Pong RL')
-    parser.add_argument('--width', default=160, type=int, 
+    parser.add_argument('--width', default=160, type=int,
                         help='canvas width (default: 160)')
     parser.add_argument('--height', default=160, type=int,
                         help='canvas height (default: 160)')
@@ -165,16 +164,18 @@ if __name__ == '__main__':
                         help='ball speed (default: 3.0)')
     parser.add_argument('--snell', default=3.0, type=float,
                         help='snell speed (default: 3.0)')
-    parser.add_argument('--ps','--paddle-speed', default=3.0, type=float,
+    parser.add_argument('--ps', '--paddle-speed', default=3.0, type=float,
                         help='paddle speed (default: 3.0)')
-    parser.add_argument('--pl','--paddle-length', default=45, type=int,
+    parser.add_argument('--pl', '--paddle-length', default=45, type=int,
                         help='paddle length (default: 45)')
-    parser.add_argument('--lr','--learning-rate', default=1e-4, type=float,
+    parser.add_argument('--lr', '--learning-rate', default=1e-4, type=float,
                         help='learning rate (default: 1e-4)')
+    parser.add_argument('--render', default=False, type=bool,
+                        help='Render the game (default: False)')
 
     args = parser.parse_args()
     parser.print_help()
-    
+
     # hyperparameters
     BATCH_SIZE = 32
     GAMMA = 0.99
@@ -182,7 +183,7 @@ if __name__ == '__main__':
     EPS_END = 0.02
     EPS_DECAY = 1000000
     TARGET_UPDATE = 1000
-    RENDER = False
+    RENDER = args.render
     lr = 1e-4
     INITIAL_MEMORY = 10000
     MEMORY_SIZE = 10 * INITIAL_MEMORY
