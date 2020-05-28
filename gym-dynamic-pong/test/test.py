@@ -224,6 +224,33 @@ class TestEnvironmentBehaviorWithRefraction(TestEnvironmentBehavior):
         self.env.step(0)
 
 
+class TestEnvironmentResponse(unittest.TestCase):
+    def setUp(self) -> None:
+        self.width = 400
+        self.height = 300
+        self.default_speed = 10
+        self.snell_speed = 8
+        self.paddle_speed = 3
+        self.paddle_height = 45
+        pong_env = DynamicPongEnv(max_score=5, width=self.width,
+                                  height=self.height,
+                                  default_speed=self.default_speed,
+                                  snell_speed=self.snell_speed,
+                                  our_paddle_speed=self.paddle_speed,
+                                  their_paddle_speed=self.paddle_speed,
+                                  our_paddle_height=self.paddle_height,
+                                  their_paddle_height=self.paddle_height, )
+        self.env = pong_env
+        self.env.step(0)
+
+    def test_reward_after_first_episode_less_than_neg1(self):
+        data, reward, episode_over, _ = self.env.step(0)
+        while not episode_over:
+            data, reward, episode_over, _ = self.env.step(0)
+
+        self.assertLess(reward, -1.)
+
+
 class TestBall(unittest.TestCase):
     def setUp(self) -> None:
         self.ball = Ball(100, 100)

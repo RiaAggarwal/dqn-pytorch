@@ -215,12 +215,9 @@ class Canvas:
         return reward
 
     def step(self, action):
-        reward = 0
         self._move_our_paddle(action)
         self._step_their_paddle()
         self._step_ball()
-
-        return reward
 
     def get_state_size(self) -> Tuple[int, int]:
         """
@@ -399,25 +396,27 @@ class DynamicPongEnv(gym.Env):
         self.action_space = spaces.Discrete(3)  # initialize discrete action space with 3 actions
         self.ale = ALEInterfaceMock(self.env, self.max_score)
 
-    def step(self, action):
+    def step(self, action) -> Tuple[np.ndarray, int, bool, dict]:
         """
         Move the environment to the next state according to the provided action.
         :param action:
-        :return:
+        :return: (data, reward, episode_over, info)
         """
-        reward = self.env.step(action)
+        self.env.step(action)
         self.frame = self.env.to_numpy()
-        return bool_array_to_rgb(self.frame), reward, self.episode_is_over(), {}  # {} is a generic info dictionary
+        reward, episode_over = self.episode_is_over()
+        return bool_array_to_rgb(self.frame), reward, episode_over, {}  # {} is a generic info dictionary
 
     def episode_is_over(self):
         """
         :returns: True if the episode is over
         """
         if self.env.their_score == self.max_score or self.env.our_score == self.max_score:
+            reward = self.env.our_score - self.env.their_score
             self.reset()
-            return True
+            return reward, True
         else:
-            return False
+            return 0, False
 
     def reset(self):
         self._initialize_env()
