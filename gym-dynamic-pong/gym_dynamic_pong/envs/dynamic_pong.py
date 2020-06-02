@@ -30,9 +30,9 @@ class Paddle(Rectangle):
 
     def set_paddle_left_right(self):
         if self.side == 'left':
-            self.x_pos = self.width // 2
+            self.x_pos = self.width / 2
         elif self.side == 'right':
-            self.x_pos = self.max_width - self.width // 2
+            self.x_pos = self.max_width - self.width / 2
         else:
             raise ValueError("`which` must be 'left' or 'right'")
 
@@ -57,10 +57,10 @@ class Paddle(Rectangle):
 
     @y_pos.setter
     def y_pos(self, value):
-        if value - self.height // 2 < 0:
-            self._y_pos = self.height // 2
-        elif value + self.height // 2 > self.max_height:
-            self._y_pos = self.max_height - self.height // 2
+        if value - self.height / 2 < 0:
+            self._y_pos = self.height / 2
+        elif value + self.height / 2 > self.max_height:
+            self._y_pos = self.max_height - self.height / 2
         else:
             self._y_pos = value
 
@@ -135,8 +135,22 @@ class Canvas:
                        2: 'DOWN', }
     actions = {k: v for v, k in action_meanings.items()}
 
-    def __init__(self, paddle_l: Paddle, paddle_r: Paddle, ball: Ball, snell: Snell, ball_speed: int, height: int,
-                 width: int):
+    def __init__(self,
+                 paddle_l: Paddle,
+                 paddle_r: Paddle,
+                 ball: Ball,
+                 snell: Snell,
+                 ball_speed: int,
+                 height: int,
+                 width: int,
+                 their_update_probability: float):
+
+        assert isinstance(their_update_probability, (float, int)),\
+            f"their_update_probability must be numeric, not {type(their_update_probability)}"
+        assert 0 <= their_update_probability <= 1, f"{their_update_probability} outside allowed bounds [0, 1]"
+
+        self.their_update_probability = their_update_probability
+
         self.width = width
         self.height = height
 
@@ -366,7 +380,7 @@ class Canvas:
         """
         Move the opponents paddle. Override this in a subclass to change the behavior.
         """
-        if random.random() < 0.2:
+        if random.random() < self.their_update_probability:
             if self.paddle_l.y_pos < self.ball.y_pos:
                 self.paddle_l.up()
             else:
@@ -385,7 +399,8 @@ class DynamicPongEnv(gym.Env):
                  our_paddle_speed=3,
                  their_paddle_speed=3,
                  our_paddle_height=45,
-                 their_paddle_height=45,):
+                 their_paddle_height=45,
+                 their_update_probability=0.2,):
 
         for v in width, height:
             assert isinstance(v, int), "width and height must be integers"
@@ -400,6 +415,7 @@ class DynamicPongEnv(gym.Env):
         self.their_paddle_speed = their_paddle_speed
         self.our_paddle_height = our_paddle_height
         self.their_paddle_height = their_paddle_height
+        self.their_update_probability = their_update_probability
 
         # initialization
         self._initialize_env()
@@ -513,6 +529,7 @@ class DynamicPongEnv(gym.Env):
             self.default_speed,
             self.height,
             self.width,
+            self.their_update_probability,
         )
 
     def _init_paddle(self, which_side: str, height, speed) -> Paddle:

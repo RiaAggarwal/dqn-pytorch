@@ -49,17 +49,23 @@ class TestEnvironmentBehavior(unittest.TestCase):
         self.default_speed = 10
         self.snell_speed = 10
         self.paddle_speed = 3
-        self.paddle_height = 45
+        self.their_paddle_height = 45
+        self.our_paddle_height = 45
+        self.their_paddle_probability = 0.2
+        self.create_env()
+        self.env.step(0)
+
+    def create_env(self):
         pong_env = DynamicPongEnv(max_score=2, width=self.width,
                                   height=self.height,
                                   default_speed=self.default_speed,
                                   snell_speed=self.snell_speed,
                                   our_paddle_speed=self.paddle_speed,
                                   their_paddle_speed=self.paddle_speed,
-                                  our_paddle_height=self.paddle_height,
-                                  their_paddle_height=self.paddle_height, )
+                                  our_paddle_height=self.our_paddle_height,
+                                  their_paddle_height=self.their_paddle_height,
+                                  their_update_probability=self.their_paddle_probability)
         self.env = pong_env
-        self.env.step(0)
 
     def test_their_score_starts_at_zero(self):
         self.assertEqual(0, self.env.env.their_score)
@@ -203,27 +209,36 @@ class TestEnvironmentBehavior(unittest.TestCase):
         self.assertAlmostEqual(y_pos, self.env.env.ball.y_pos, 0)
         self.assertAlmostEqual(x_pos, self.env.env.ball.x_pos, 1)
 
+    def test_perfect_opponent_never_is_scored_on(self):
+        self.their_update_probability = 1.
+        self.default_speed = 2
+        self.snell_speed = 2
+        self.paddle_speed = 5
+        self.our_paddle_height = self.height
+        self.create_env()
+        for i in range(10000):
+            reward = self.env.step(0)[1]
+            self.assertEqual(0, reward)
+
+    def test_immobile_opponent_never_moves(self):
+        self.their_paddle_probability = 0.
+        self.create_env()
+
+        pos = self.env.env.paddle_l.pos
+        for i in range(1000):
+            self.env.step(0)
+            self.assertEqual(pos, self.env.env.paddle_l.pos)
+
     def tearDown(self) -> None:
         self.env.close()
 
 
 class TestEnvironmentBehaviorWithRefraction(TestEnvironmentBehavior):
     def setUp(self) -> None:
-        self.width = 400
-        self.height = 300
+        super(TestEnvironmentBehaviorWithRefraction, self).setUp()
         self.default_speed = 10
         self.snell_speed = 8
-        self.paddle_speed = 3
-        self.paddle_height = 45
-        pong_env = DynamicPongEnv(max_score=2, width=self.width,
-                                  height=self.height,
-                                  default_speed=self.default_speed,
-                                  snell_speed=self.snell_speed,
-                                  our_paddle_speed=self.paddle_speed,
-                                  their_paddle_speed=self.paddle_speed,
-                                  our_paddle_height=self.paddle_height,
-                                  their_paddle_height=self.paddle_height, )
-        self.env = pong_env
+        self.create_env()
         self.env.step(0)
 
 
