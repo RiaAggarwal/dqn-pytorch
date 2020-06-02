@@ -1,15 +1,14 @@
 import math
 import random
-import warnings
+import os
+import time
 from typing import Tuple, Dict, Any, Union
 
 import gym
 import matplotlib.pyplot as plt
 import numpy as np
 from gym import spaces
-
 from shapes import Line, Rectangle, Point
-
 
 EPSILON = 1e-7
 
@@ -31,9 +30,9 @@ class Paddle(Rectangle):
 
     def set_paddle_left_right(self):
         if self.side == 'left':
-            self.x_pos = self.width // 2
+            self.x_pos = self.width / 2
         elif self.side == 'right':
-            self.x_pos = self.max_width - self.width // 2
+            self.x_pos = self.max_width - self.width / 2
         else:
             raise ValueError("`which` must be 'left' or 'right'")
 
@@ -58,10 +57,10 @@ class Paddle(Rectangle):
 
     @y_pos.setter
     def y_pos(self, value):
-        if value - self.height // 2 < 0:
-            self._y_pos = self.height // 2
-        elif value + self.height // 2 > self.max_height:
-            self._y_pos = self.max_height - self.height // 2
+        if value - self.height / 2 < 0:
+            self._y_pos = self.height / 2
+        elif value + self.height / 2 > self.max_height:
+            self._y_pos = self.max_height - self.height / 2
         else:
             self._y_pos = value
 
@@ -136,8 +135,22 @@ class Canvas:
                        2: 'DOWN', }
     actions = {k: v for v, k in action_meanings.items()}
 
-    def __init__(self, paddle_l: Paddle, paddle_r: Paddle, ball: Ball, snell: Snell, ball_speed: int, height: int,
-                 width: int):
+    def __init__(self,
+                 paddle_l: Paddle,
+                 paddle_r: Paddle,
+                 ball: Ball,
+                 snell: Snell,
+                 ball_speed: int,
+                 height: int,
+                 width: int,
+                 their_update_probability: float):
+
+        assert isinstance(their_update_probability, (float, int)),\
+            f"their_update_probability must be numeric, not {type(their_update_probability)}"
+        assert 0 <= their_update_probability <= 1, f"{their_update_probability} outside allowed bounds [0, 1]"
+
+        self.their_update_probability = their_update_probability
+
         self.width = width
         self.height = height
 
@@ -176,9 +189,9 @@ class Canvas:
         ```
         """
         border = {
-            'left': Line((0, 0), (0, self.height)),
-            'top': Line((0, self.height), (self.width, self.height)),
-            'right': Line((self.width, self.height), (self.width, 0)),
+            'left'  : Line((0, 0), (0, self.height)),
+            'top'   : Line((0, self.height), (self.width, self.height)),
+            'right' : Line((self.width, self.height), (self.width, 0)),
             'bottom': Line((self.width, 0), (0, 0))
         }
         edges = {o: o.get_edges() for o in self.get_objects()}
@@ -367,7 +380,7 @@ class Canvas:
         """
         Move the opponents paddle. Override this in a subclass to change the behavior.
         """
-        if random.random() < 0.2:
+        if random.random() < self.their_update_probability:
             if self.paddle_l.y_pos < self.ball.y_pos:
                 self.paddle_l.up()
             else:
@@ -375,10 +388,20 @@ class Canvas:
 
 
 class DynamicPongEnv(gym.Env):
-    metadata = {'render.modes': ['human']}
+    metadata = {'render.modes': ['human', 'png']}
 
-    def __init__(self, max_score=20, width=400, height=300, default_speed=3, snell_speed=3,
-                 our_paddle_speed=3, their_paddle_speed=3, our_paddle_height=45, their_paddle_height=45, ):
+    def __init__(self,
+                 max_score=20,
+                 width=400,
+                 height=300,
+                 default_speed=3,
+                 snell_speed=3,
+                 our_paddle_speed=3,
+                 their_paddle_speed=3,
+                 our_paddle_height=45,
+                 their_paddle_height=45,
+                 their_update_probability=0.2,):
+
         for v in width, height:
             assert isinstance(v, int), "width and height must be integers"
 
@@ -392,6 +415,7 @@ class DynamicPongEnv(gym.Env):
         self.their_paddle_speed = their_paddle_speed
         self.our_paddle_height = our_paddle_height
         self.their_paddle_height = their_paddle_height
+        self.their_update_probability = their_update_probability
 
         # initialization
         self._initialize_env()
@@ -399,6 +423,7 @@ class DynamicPongEnv(gym.Env):
         self.fig = None
         self.ax = None
         self.fig_handle = None
+        self.frame_count = 0
 
         self.observation_space = spaces.Box(low=False, high=True, dtype=np.bool,
                                             shape=(self.env.get_state_size()))
@@ -428,10 +453,19 @@ class DynamicPongEnv(gym.Env):
     def reset(self):
         self._initialize_env()
 
-    def render(self, mode='human'):
-        # TODO: create another mode so that video is saved to a file for later replay
+    def render(self, mode='human', save_dir=None):
+        """
+        Renders the most recent frame according to the specified mode.
+        - human: render to screen using `matplotlib`
+        - png: save png images to `save_dir`
+
+        :param mode: 'human' or 'png'
+        :param save_dir: directory to save images to in modes other than 'human'
+        """
         if mode == 'human':
             self._display_screen()
+        elif mode == 'png':
+            self._save_display_images(save_dir)
 
     def close(self):
         self.env = None
@@ -454,8 +488,39 @@ class DynamicPongEnv(gym.Env):
         self.ax.set_title(f"{self.env.their_score}                    {self.env.our_score}")
         self.fig.canvas.draw()
 
+    def _save_display_images(self, save_dir):
+        """
+        Saves the most recent frame as a png image in the directory `save_dir`. If `save_dir` does not exist, it is
+        created. Another directory under `save_dir` with the timestamp of the first call of this function is created.
+        Numbered frames are stored under this timestamped directory.
+
+        :param save_dir: Directory to save the images in. It will be created if it does not exist.
+        """
+        t = time.localtime()
+        timestamp = time.strftime('%b-%d-%Y_%H:%M', t)
+        save_dir = os.path.join(save_dir, timestamp)
+        if save_dir is not None:
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+
+        if self.fig is None:
+            self.fig = plt.figure()
+            self.ax = self.fig.gca()
+            self.fig_handle = self.ax.imshow(self.frame, cmap='gray')
+        else:
+            self.fig_handle.set_data(self.frame)
+        self.ax.set_title(f"{self.env.their_score}                    {self.env.our_score}")
+        self.fig.canvas.draw()
+
+        path = os.path.join(save_dir, f'{self.frame_count:07d}.png')
+        self.frame_count += 1
+        self.fig.savefig(path)
+
     # Sprites
     def _initialize_env(self):
+        """
+        Initialize the Canvas object containing all the important interactions in the environment.
+        """
         self.env = Canvas(
             self._init_paddle('left', self.their_paddle_height, self.their_paddle_speed),
             self._init_paddle('right', self.our_paddle_height, self.our_paddle_speed),
@@ -464,19 +529,25 @@ class DynamicPongEnv(gym.Env):
             self.default_speed,
             self.height,
             self.width,
+            self.their_update_probability,
         )
-        # TODO: implement border and pretty things up
 
     def _init_paddle(self, which_side: str, height, speed) -> Paddle:
         """
-        right now, just returns the paddle height
-        :rtype: int
+        Create a paddle object
+
+        :param which_side: 'left' or 'right'
+        :param speed: the number of units the paddle can move in a single frame
+        :param height: the height of the paddle
         """
         paddle = Paddle(height, int(0.02 * self.width) + 1, speed, which_side, self.width, self.height)
-        paddle.y_pos = self.height // 2
+        paddle.y_pos = self.height / 2
         return paddle
 
     def _init_ball(self) -> Ball:
+        """
+        Create a ball object
+        """
         ball = Ball(self.height, self.width)
         ball.x_pos = self.width // 2
         ball.y_pos = self.height // 2
@@ -490,6 +561,7 @@ class ALEInterfaceMock:
     """
     Object to expose the lives method. There are likely other methods that need to be exposed.
     """
+
     def __init__(self, env: Canvas, lives: int):
         assert lives > 0, "Number of lives must be > 0"
         self.env = env
