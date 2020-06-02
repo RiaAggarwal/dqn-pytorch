@@ -5,10 +5,11 @@ from collections import namedtuple
 from itertools import count
 import warnings
 import argparse
+import pickle
 
-from underwater_rl.memory import ReplayMemory
-from underwater_rl.models import *
-from underwater_rl.wrappers import *
+from memory import ReplayMemory
+from models import *
+from wrappers import *
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
@@ -31,6 +32,10 @@ def select_action(state):
         # TODO: should this just go the the CPU?
         return torch.tensor([[random.randrange(env.action_space.n)]], device=device, dtype=torch.long)
 
+def tic():
+  return time.time()
+def toc(tstart, nm=""):
+  print('%s took: %s sec.\n' % (nm,(time.time() - tstart)))
 
 def optimize_model():
     if len(memory) < BATCH_SIZE:
@@ -82,7 +87,7 @@ def get_state(obs):
     return state.unsqueeze(0)
 
 
-def train(env, n_episodes, render=False):
+def train(env, n_episodes, running_reward_history, render=False):
     for episode in range(n_episodes):
         obs = env.reset()
         state = get_state(obs)
@@ -115,10 +120,12 @@ def train(env, n_episodes, render=False):
 
             if done:
                 break
+
+        running_reward_history.append(total_reward)
         if episode % 20 == 0:
             print('Total steps: {} \t Episode: {}/{} \t Total reward: {}'.format(steps_done, episode, t, total_reward))
     env.close()
-    return
+    return running_reward_history
 
 
 def test(env, n_episodes, policy, render=True):
@@ -215,11 +222,15 @@ if __name__ == '__main__':
     # setup optimizer
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)
 
-    if (resume):
+    if (resume == True):
         checkpoint = torch.load("dqn_pong_model", map_location=device)
         policy_net.load_state_dict(checkpoint['Net'])
         optimizer.load_state_dict(checkpoint['Optimizer'])
         target_net.load_state_dict(policy_net.state_dict())
+        print("Loading the trained model")
+        running_reward_history = pickle.load(open('history.p', 'rb'))
+    else:
+        running_reward_history = []
 
     steps_done = 0
 
@@ -227,11 +238,12 @@ if __name__ == '__main__':
     memory = ReplayMemory(MEMORY_SIZE)
 
     # train model
-    train(env, 2000, render=RENDER)
+    running_reward_history = train(env, 4000, running_reward_history, render=RENDER)
     torch.save({'Net': policy_net.state_dict(), 'Optimizer': optimizer.state_dict()}, "dqn_pong_model")
     # policy_net = torch.load("dqn_pong_model")
+    pickle.dump(running_reward_history, open('history.p', 'wb'))
     checkpoint = torch.load("dqn_pong_model", map_location=device)
     policy_net.load_state_dict(checkpoint['Net'])
-    test(env, 1, policy_net, render=RENDER)
+    #test(env, 1, policy_net, render=RENDER)
 
     # TODO: set up command line arguments for all the various configuration variables
