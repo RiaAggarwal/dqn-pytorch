@@ -1,5 +1,8 @@
 import unittest
 import math
+import os
+import glob
+import shutil
 
 from gym_dynamic_pong.envs import DynamicPongEnv
 from gym_dynamic_pong.envs.dynamic_pong import Ball
@@ -371,8 +374,39 @@ class TestPoint(unittest.TestCase):
         self.assertEqual((0, 1), tuple(point1))
 
 
-# TODO: test episode end
-# TODO: test snell layer
+class TestRendering(unittest.TestCase):
+    def setUp(self) -> None:
+        self.width = 160
+        self.height = 160
+        self.default_speed = 2
+        self.snell_speed = 2
+        self.paddle_speed = 3
+        self.paddle_height = 30
+        pong_env = DynamicPongEnv(max_score=5, width=self.width,
+                                  height=self.height,
+                                  default_speed=self.default_speed,
+                                  snell_speed=self.snell_speed,
+                                  our_paddle_speed=self.paddle_speed,
+                                  their_paddle_speed=self.paddle_speed,
+                                  our_paddle_height=self.paddle_height,
+                                  their_paddle_height=self.paddle_height, )
+        self.env = pong_env
+        self.env.step(0)
+
+        self.save_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'artifacts'))
+
+    def test_png_render_creates_directory_if_it_doesnt_exist(self):
+        self.env.render('png', self.save_dir)
+        self.assertTrue(os.path.exists(self.save_dir))
+
+    def test_png_render_creates_png_file(self):
+        self.env.render('png', self.save_dir)
+        match = glob.glob(os.path.join(self.save_dir, "**", "*.png"), recursive=True)
+        self.assertGreater(len(match), 0)
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.save_dir)
+
 
 if __name__ == '__main__':
     unittest.main()
