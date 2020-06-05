@@ -3,11 +3,16 @@ Adapted from OpenAI Baselines
 https://github.com/openai/baselines/blob/master/baselines/common/atari_wrappers.py
 """
 from collections import deque
-import numpy as np
-import gym
-import copy
+
 import cv2
+import gym
+import numpy as np
+
+__all__ = ['make_env', 'RewardScaler', 'ClipRewardEnv', 'LazyFrames', 'FrameStack', 'WarpFrame', 'FireResetEnv',
+           'EpisodicLifeEnv', 'MaxAndSkipEnv', 'NoopResetEnv']
+
 cv2.ocl.setUseOpenCL(False)
+
 
 def make_env(env, stack_frames=True, episodic_life=True, clip_rewards=False, scale=False):
     if episodic_life:
@@ -24,6 +29,7 @@ def make_env(env, stack_frames=True, episodic_life=True, clip_rewards=False, sca
     if clip_rewards:
         env = ClipRewardEnv(env)
     return env
+
 
 class RewardScaler(gym.RewardWrapper):
 
@@ -68,6 +74,7 @@ class LazyFrames(object):
     def __getitem__(self, i):
         return self._force()[i]
 
+
 class FrameStack(gym.Wrapper):
     def __init__(self, env, k):
         """Stack k last frames.
@@ -80,7 +87,8 @@ class FrameStack(gym.Wrapper):
         self.k = k
         self.frames = deque([], maxlen=k)
         shp = env.observation_space.shape
-        self.observation_space = gym.spaces.Box(low=0, high=255, shape=(shp[0], shp[1], shp[2] * k), dtype=env.observation_space.dtype)
+        self.observation_space = gym.spaces.Box(low=0, high=255, shape=(shp[0], shp[1], shp[2] * k),
+                                                dtype=env.observation_space.dtype)
 
     def reset(self):
         ob = self.env.reset()
@@ -105,7 +113,7 @@ class WarpFrame(gym.ObservationWrapper):
         self.width = 84
         self.height = 84
         self.observation_space = gym.spaces.Box(low=0, high=255,
-            shape=(self.height, self.width, 1), dtype=np.uint8)
+                                                shape=(self.height, self.width, 1), dtype=np.uint8)
 
     def observation(self, frame):
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
@@ -202,6 +210,7 @@ class MaxAndSkipEnv(gym.Wrapper):
         obs = self.env.reset()
         self._obs_buffer.append(obs)
         return obs
+
 
 class NoopResetEnv(gym.Wrapper):
     def __init__(self, env=None, noop_max=30):
