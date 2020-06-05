@@ -32,10 +32,14 @@ def select_action(state):
         # TODO: should this just go the the CPU?
         return torch.tensor([[random.randrange(env.action_space.n)]], device=device, dtype=torch.long)
 
+
 def tic():
-  return time.time()
+    return time.time()
+
+
 def toc(tstart, nm=""):
-  print('%s took: %s sec.\n' % (nm,(time.time() - tstart)))
+    print('%s took: %s sec.\n' % (nm, (time.time() - tstart)))
+
 
 def optimize_model():
     if len(memory) < BATCH_SIZE:
@@ -181,6 +185,10 @@ if __name__ == '__main__':
                         help='Render the game (default: False)')
     parser.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
                         help='Probability that the opponent moves in the direction of the ball (default: 0.2)')
+    parser.add_argument('--episodes', dest='episodes', default=4000, type=int,
+                        help='Number of episodes to train for (default: 4000)')
+    parser.add_argument('--resume', dest='resume', action='store_true',
+                        help='Resume training switch. (omit to start from scratch)')
 
     args = parser.parse_args()
     parser.print_help()
@@ -193,11 +201,11 @@ if __name__ == '__main__':
     EPS_DECAY = 1000000
     TARGET_UPDATE = 1000
     RENDER = args.render
-    lr = 1e-4
+    lr = args.lr
     INITIAL_MEMORY = 10000
     MEMORY_SIZE = 10 * INITIAL_MEMORY
 
-    resume = False
+    resume = args.resume
 
     # create environment
     # env = gym.make("PongNoFrameskip-v4")
@@ -241,12 +249,12 @@ if __name__ == '__main__':
     memory = ReplayMemory(MEMORY_SIZE)
 
     # train model
-    running_reward_history = train(env, 4000, running_reward_history, render=RENDER)
+    running_reward_history = train(env, args.episodes, running_reward_history, render=RENDER)
     torch.save({'Net': policy_net.state_dict(), 'Optimizer': optimizer.state_dict()}, "dqn_pong_model")
     # policy_net = torch.load("dqn_pong_model")
     pickle.dump(running_reward_history, open('history.p', 'wb'))
     checkpoint = torch.load("dqn_pong_model", map_location=device)
     policy_net.load_state_dict(checkpoint['Net'])
-    #test(env, 1, policy_net, render=RENDER)
+    # test(env, 1, policy_net, render=RENDER)
 
     # TODO: set up command line arguments for all the various configuration variables
