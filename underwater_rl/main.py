@@ -1,11 +1,12 @@
+import argparse
 import math
+import os
+import pickle
 import random
 import time
+import warnings
 from collections import namedtuple
 from itertools import count
-import warnings
-import argparse
-import pickle
 
 from memory import ReplayMemory
 from models import *
@@ -189,6 +190,13 @@ if __name__ == '__main__':
                         help='Number of episodes to train for (default: 4000)')
     parser.add_argument('--resume', dest='resume', action='store_true',
                         help='Resume training switch. (omit to start from scratch)')
+    parser.add_argument('--checkpoint', default='dqn_pong_model',
+                        help='Checkpoint to load if resuming (default: dqn_pong_model)')
+    parser.add_argument('--history', default='history.p',
+                        help='History to load if resuming (default: dqn_pong_model)')
+    parser.add_argument('--store-dir', dest='store_dir',
+                        default=os.path.join('experiments', time.strftime("%Y-%m-%d %H.%M.%S")),
+                        help='Path to directory to store experiment results (default: ./experiments/<timestamp>/')
 
     args = parser.parse_args()
     parser.print_help()
@@ -234,12 +242,12 @@ if __name__ == '__main__':
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)
 
     if (resume == True):
-        checkpoint = torch.load("dqn_pong_model", map_location=device)
+        checkpoint = torch.load(args.checkpoint, map_location=device)
         policy_net.load_state_dict(checkpoint['Net'])
         optimizer.load_state_dict(checkpoint['Optimizer'])
         target_net.load_state_dict(policy_net.state_dict())
         print("Loading the trained model")
-        running_reward_history = pickle.load(open('history.p', 'rb'))
+        running_reward_history = pickle.load(open(args.history, 'rb'))
     else:
         running_reward_history = []
 
@@ -249,11 +257,15 @@ if __name__ == '__main__':
     memory = ReplayMemory(MEMORY_SIZE)
 
     # train model
+    if not os.path.exists(args.store_dir):
+        os.makedirs(args.store_dir)
     running_reward_history = train(env, args.episodes, running_reward_history, render=RENDER)
-    torch.save({'Net': policy_net.state_dict(), 'Optimizer': optimizer.state_dict()}, "dqn_pong_model")
+    torch.save({'Net': policy_net.state_dict(), 'Optimizer': optimizer.state_dict()},
+               os.path.join(args.store_dir, 'dqn_pong_model'))
     # policy_net = torch.load("dqn_pong_model")
-    pickle.dump(running_reward_history, open('history.p', 'wb'))
-    checkpoint = torch.load("dqn_pong_model", map_location=device)
+    pickle.dump(running_reward_history,
+                open(os.path.join(args.store_dir, 'history.p'), 'wb'))
+    checkpoint = torch.load(os.path.join(args.store_dir, 'dqn_pong_model'), map_location=device)
     policy_net.load_state_dict(checkpoint['Net'])
     # test(env, 1, policy_net, render=RENDER)
 
