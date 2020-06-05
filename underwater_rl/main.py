@@ -179,6 +179,8 @@ if __name__ == '__main__':
                         help='learning rate (default: 1e-4)')
     parser.add_argument('--render', default=False, type=bool,
                         help='Render the game (default: False)')
+    parser.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
+                        help='Probability that the opponent moves in the direction of the ball (default: 0.2)')
 
     args = parser.parse_args()
     parser.print_help()
@@ -210,6 +212,7 @@ if __name__ == '__main__':
         their_paddle_speed=args.ps,
         our_paddle_height=args.pl,
         their_paddle_height=args.pl,
+        their_update_probability=args.update_prob,
     )
     # TODO: consider removing some of the wrappers - may improve performance
     env = make_env(env, episodic_life=True, clip_rewards=True)
