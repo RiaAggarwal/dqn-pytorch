@@ -14,9 +14,9 @@ import torch
 import torch.optim as optim
 import torch.nn.functional as F
 
-from underwater_rl.memory import ReplayMemory
-from underwater_rl.models import *
-from underwater_rl.wrappers import *
+from memory import ReplayMemory
+from models import *
+from wrappers import *
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
