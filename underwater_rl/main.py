@@ -207,8 +207,13 @@ if __name__ == '__main__':
     env = make_env(env, episodic_life=True, clip_rewards=True)
 
     # create networks
+    '''
     policy_net = DQN(n_actions=env.action_space.n).to(device)
     target_net = DQN(n_actions=env.action_space.n).to(device)
+    target_net.load_state_dict(policy_net.state_dict())
+    '''
+    policy_net = resnet18(num_classes=env.action_space.n).to(device)
+    target_net = resnet18(num_classes=env.action_space.n).to(device)
     target_net.load_state_dict(policy_net.state_dict())
 
     # setup optimizer
