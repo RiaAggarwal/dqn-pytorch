@@ -157,10 +157,10 @@ def test(env, n_episodes, policy, render=True):
 if __name__ == '__main__':
     # arguments
     parser = argparse.ArgumentParser(description='Dynamic Pong RL')
-    parser.add_argument('--width', default=160, type=int, 
-                        help='canvas width (default: 160)')
-    parser.add_argument('--height', default=160, type=int,
-                        help='canvas height (default: 160)')
+    parser.add_argument('--width', default=224, type=int, 
+                        help='canvas width (default: 224)')
+    parser.add_argument('--height', default=224, type=int,
+                        help='canvas height (default: 224)')
     parser.add_argument('--ball', default=3.0, type=float,
                         help='ball speed (default: 3.0)')
     parser.add_argument('--snell', default=3.0, type=float,
@@ -232,5 +232,3 @@ if __name__ == '__main__':
     checkpoint = torch.load("dqn_pong_model", map_location=device)
     policy_net.load_state_dict(checkpoint['Net'])
     test(env, 1, policy_net, render=RENDER)
-
-    # TODO: set up command line arguments for all the various configuration variables
