@@ -8,7 +8,7 @@ import gym
 import matplotlib.pyplot as plt
 import numpy as np
 from gym import spaces
-from shapes import Line, Rectangle, Point
+from utils import Line, Rectangle, Point
 
 EPSILON = 1e-7
 
@@ -433,7 +433,8 @@ class DynamicPongEnv(gym.Env):
     def step(self, action) -> Tuple[np.ndarray, int, bool, dict]:
         """
         Move the environment to the next state according to the provided action.
-        :param action:
+
+        :param action: {0: no-op, 1: up, 2: down}
         :return: (data, reward, episode_over, info)
         """
         reward = self.env.step(action)

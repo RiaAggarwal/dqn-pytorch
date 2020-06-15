@@ -6,7 +6,7 @@ import shutil
 
 from gym_dynamic_pong.envs import DynamicPongEnv
 from gym_dynamic_pong.envs.dynamic_pong import Ball
-from shapes import Line, Point
+from utils import Line, Point
 
 
 @unittest.skip
@@ -216,7 +216,7 @@ class TestEnvironmentBehavior(unittest.TestCase):
         self.paddle_speed = 5
         self.our_paddle_height = self.height
         self.create_env()
-        for i in range(10000):
+        for i in range(1000):
             reward = self.env.step(0)[1]
             self.assertEqual(0, reward)
 
