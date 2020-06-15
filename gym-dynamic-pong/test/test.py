@@ -5,7 +5,7 @@ import glob
 import shutil
 
 from gym_dynamic_pong.envs import DynamicPongEnv
-from gym_dynamic_pong.envs.dynamic_pong import Ball
+from utils.sprites import Ball
 from utils import Line, Point
 
 
