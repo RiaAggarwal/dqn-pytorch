@@ -9,6 +9,7 @@ class Point:
         """
         Creates point (x, y). If no argument is specified for y, x is assumed to be an angle, and x and y are populated
         as a unit vector with direction `angle = x` from the right horizontal axis.
+
         :param x: x position or angle
         :param y: y position or None
         """
@@ -79,17 +80,37 @@ class Point:
         return f"Point({self.x}, {self.y})"
 
 
-def perp(p1: Point, p2: Point):
+def perp(p1: Point, p2: Point) -> Union[int, float]:
+    """
+    Cross product of point1 and point2
+
+    :param p1: Point()
+    :param p2: Point()
+    :return: cross product scalar
+    """
     return p1.x * p2.y - p1.y * p2.x
 
 
-def dot(p1: Point, p2: Point):
+def dot(p1: Point, p2: Point) -> Union[int, float]:
+    """
+    Dot product of point1 and point2
+
+    :param p1: Point()
+    :param p2: Point()
+    :return: dot product scalar
+    """
     return p1.x * p2.x + p1.y * p2.y
 
 
 class Line:
     def __init__(self, start: Union[Tuple[Union[float, int], Union[float, int]], Point],
                  end: Union[Tuple[Union[float, int], Union[float, int]], Point]):
+        """
+        A line segment object with methods to detect intersection and to compute angles.
+
+        :param start: Point(x, y)
+        :param end: Point(x, y)
+        """
         if isinstance(start, tuple):
             self.start = Point(*start)
         else:
@@ -128,7 +149,8 @@ class Line:
 
     def _in_segment(self, point: Point) -> bool:
         """
-        Determine if collinear point `other` is in segment self
+        Determine if collinear point `other` is in segment self.
+
         :param point: a point collinear with self
         """
         if self.start.x != self.end.x:
@@ -146,6 +168,7 @@ class Line:
     def point1_before_point2(self, point1: Point, point2: Point) -> bool:
         """
         Determines whether `point1` comes before `point2` along the direction of the line segment
+
         :param point1: (x1, y1)
         :param point2: (x2, y2)
         """
@@ -178,17 +201,20 @@ class Line:
         return (p for p in (self.start, self.end))
 
 
-def angle_between(l1: Line, l2: Line):
-    pass
-
-
 class Rectangle:
-    # TODO: reimplement everything in opencv
     """
     Class to help render rectangular objects in numpy
     """
 
     def __init__(self, **kwargs):
+        """
+        A rectangle object with tools to detect interaction with other objects, and to render a canvas.
+
+        :param max_width: the canvas width
+        :param max_height: the canvas height
+        :param height: the height of the rectangle
+        :param width: the width of the rectangle
+        """
         self._x_pos = 0
         self._y_pos = 0
 
@@ -253,6 +279,7 @@ class Rectangle:
     def get_edges(self) -> Dict[str, Line]:
         """
         Edges are assigned in a clockwise fashion so that the interior of the rectangle is to the right of the ray.
+
         :return:
         """
         lb = self.left_bound, self.bot_bound
@@ -267,6 +294,12 @@ class Rectangle:
         }
 
     def is_overlapping(self, other) -> bool:
+        """
+        Determine if `self` overlaps another rectangle
+
+        :param other: Rectangle
+        :return: `True` or `False`
+        """
         if self.bot_bound > other.top_bound or self.top_bound < other.bot_bound or self.right_bound < other.left_bound \
                 or self.left_bound > other.right_bound:
             return False
@@ -274,12 +307,23 @@ class Rectangle:
             return True
 
     def is_in(self, point: Point) -> bool:
+        """
+        Determine if `point` is in the rectangle
+
+        :param point: `Point(x, y)`
+        :return: True or False
+        """
         if self.left_bound < point.x < self.right_bound and self.bot_bound < point.y < self.top_bound:
             return True
         else:
             return False
 
     def to_numpy(self) -> np.ndarray:
+        """
+        Renders the rectangle object on the canvas given by `max_height` and `max_width`
+
+        :return: canvas as numpy array
+        """
         # TODO: consider making this sparse
         out = np.zeros((self.max_height, self.max_width), dtype=np.bool)
 

@@ -1,5 +1,8 @@
 import unittest
 import math
+import os
+import glob
+import shutil
 
 from gym_dynamic_pong.envs import DynamicPongEnv
 from gym_dynamic_pong.envs.dynamic_pong import Ball
@@ -46,17 +49,23 @@ class TestEnvironmentBehavior(unittest.TestCase):
         self.default_speed = 10
         self.snell_speed = 10
         self.paddle_speed = 3
-        self.paddle_height = 45
+        self.their_paddle_height = 45
+        self.our_paddle_height = 45
+        self.their_paddle_probability = 0.2
+        self.create_env()
+        self.env.step(0)
+
+    def create_env(self):
         pong_env = DynamicPongEnv(max_score=2, width=self.width,
                                   height=self.height,
                                   default_speed=self.default_speed,
                                   snell_speed=self.snell_speed,
                                   our_paddle_speed=self.paddle_speed,
                                   their_paddle_speed=self.paddle_speed,
-                                  our_paddle_height=self.paddle_height,
-                                  their_paddle_height=self.paddle_height, )
+                                  our_paddle_height=self.our_paddle_height,
+                                  their_paddle_height=self.their_paddle_height,
+                                  their_update_probability=self.their_paddle_probability)
         self.env = pong_env
-        self.env.step(0)
 
     def test_their_score_starts_at_zero(self):
         self.assertEqual(0, self.env.env.their_score)
@@ -200,38 +209,47 @@ class TestEnvironmentBehavior(unittest.TestCase):
         self.assertAlmostEqual(y_pos, self.env.env.ball.y_pos, 0)
         self.assertAlmostEqual(x_pos, self.env.env.ball.x_pos, 1)
 
+    def test_perfect_opponent_never_is_scored_on(self):
+        self.their_update_probability = 1.
+        self.default_speed = 2
+        self.snell_speed = 2
+        self.paddle_speed = 5
+        self.our_paddle_height = self.height
+        self.create_env()
+        for i in range(10000):
+            reward = self.env.step(0)[1]
+            self.assertEqual(0, reward)
+
+    def test_immobile_opponent_never_moves(self):
+        self.their_paddle_probability = 0.
+        self.create_env()
+
+        pos = self.env.env.paddle_l.pos
+        for i in range(1000):
+            self.env.step(0)
+            self.assertEqual(pos, self.env.env.paddle_l.pos)
+
     def tearDown(self) -> None:
         self.env.close()
 
 
 class TestEnvironmentBehaviorWithRefraction(TestEnvironmentBehavior):
     def setUp(self) -> None:
-        self.width = 400
-        self.height = 300
+        super(TestEnvironmentBehaviorWithRefraction, self).setUp()
         self.default_speed = 10
         self.snell_speed = 8
-        self.paddle_speed = 3
-        self.paddle_height = 45
-        pong_env = DynamicPongEnv(max_score=2, width=self.width,
-                                  height=self.height,
-                                  default_speed=self.default_speed,
-                                  snell_speed=self.snell_speed,
-                                  our_paddle_speed=self.paddle_speed,
-                                  their_paddle_speed=self.paddle_speed,
-                                  our_paddle_height=self.paddle_height,
-                                  their_paddle_height=self.paddle_height, )
-        self.env = pong_env
+        self.create_env()
         self.env.step(0)
 
 
 class TestEnvironmentResponse(unittest.TestCase):
     def setUp(self) -> None:
-        self.width = 400
-        self.height = 300
-        self.default_speed = 10
-        self.snell_speed = 8
+        self.width = 160
+        self.height = 160
+        self.default_speed = 2
+        self.snell_speed = 2
         self.paddle_speed = 3
-        self.paddle_height = 45
+        self.paddle_height = 30
         pong_env = DynamicPongEnv(max_score=5, width=self.width,
                                   height=self.height,
                                   default_speed=self.default_speed,
@@ -245,10 +263,12 @@ class TestEnvironmentResponse(unittest.TestCase):
 
     def test_reward_after_first_episode_less_than_neg1(self):
         data, reward, episode_over, _ = self.env.step(0)
+        total_reward = 0
         while not episode_over:
             data, reward, episode_over, _ = self.env.step(0)
+            total_reward += reward
 
-        self.assertLess(reward, -1.)
+        self.assertLess(total_reward, -1)
 
 
 class TestBall(unittest.TestCase):
@@ -369,8 +389,39 @@ class TestPoint(unittest.TestCase):
         self.assertEqual((0, 1), tuple(point1))
 
 
-# TODO: test episode end
-# TODO: test snell layer
+class TestRendering(unittest.TestCase):
+    def setUp(self) -> None:
+        self.width = 160
+        self.height = 160
+        self.default_speed = 2
+        self.snell_speed = 2
+        self.paddle_speed = 3
+        self.paddle_height = 30
+        pong_env = DynamicPongEnv(max_score=5, width=self.width,
+                                  height=self.height,
+                                  default_speed=self.default_speed,
+                                  snell_speed=self.snell_speed,
+                                  our_paddle_speed=self.paddle_speed,
+                                  their_paddle_speed=self.paddle_speed,
+                                  our_paddle_height=self.paddle_height,
+                                  their_paddle_height=self.paddle_height, )
+        self.env = pong_env
+        self.env.step(0)
+
+        self.save_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'artifacts'))
+
+    def test_png_render_creates_directory_if_it_doesnt_exist(self):
+        self.env.render('png', self.save_dir)
+        self.assertTrue(os.path.exists(self.save_dir))
+
+    def test_png_render_creates_png_file(self):
+        self.env.render('png', self.save_dir)
+        match = glob.glob(os.path.join(self.save_dir, "**", "*.png"), recursive=True)
+        self.assertGreater(len(match), 0)
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.save_dir)
+
 
 if __name__ == '__main__':
     unittest.main()
