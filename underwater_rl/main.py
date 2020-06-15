@@ -240,8 +240,13 @@ if __name__ == '__main__':
     env = make_env(env, episodic_life=True, clip_rewards=True)
 
     # create networks
+    '''
     policy_net = DQN(n_actions=env.action_space.n).to(device)
     target_net = DQN(n_actions=env.action_space.n).to(device)
+    target_net.load_state_dict(policy_net.state_dict())
+    '''
+    policy_net = resnet18(num_classes=env.action_space.n).to(device)
+    target_net = resnet18(num_classes=env.action_space.n).to(device)
     target_net.load_state_dict(policy_net.state_dict())
 
     # setup optimizer
@@ -274,5 +279,3 @@ if __name__ == '__main__':
     checkpoint = torch.load(os.path.join(args.store_dir, 'dqn_pong_model'), map_location=device)
     policy_net.load_state_dict(checkpoint['Net'])
     # test(env, 1, policy_net, render=RENDER)
-
-    # TODO: set up command line arguments for all the various configuration variables
