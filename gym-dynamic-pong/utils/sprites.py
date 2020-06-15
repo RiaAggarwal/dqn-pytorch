@@ -95,7 +95,8 @@ class Ball(Rectangle):
     @unit_velocity.setter
     def unit_velocity(self, value: Union[Tuple[float, float], Point]):
         """
-        Sets the angle parameter give a set of (x, y) coordinates
+        Sets the angle parameter give a set of (x, y) coordinates.
+
         :param value: (x, y)
         """
         if isinstance(value, tuple):
@@ -232,6 +233,7 @@ class Canvas:
     def _move_our_paddle(self, action) -> None:
         """
         Move our paddle according to the provided action
+
         :param action: the action code
         """
         if not isinstance(action, int):
@@ -245,6 +247,7 @@ class Canvas:
     def _step_ball(self, speed: Union[float, int] = None):
         """
         Move the ball to the next position according to the speed of the layer it is in.
+
         :param speed: used to continue the trajectory of a ball that interacted with an object
         """
         if speed is None:
@@ -265,7 +268,7 @@ class Canvas:
     def _interaction_dispatcher(self, obj: Union[str, Paddle, Snell], edge: str, point: Point, line: Line,
                                 trajectory: Line):
         """
-        Dispatch data to the appropriate method based on the interaction `obj`
+        Dispatch data to the appropriate method based on the interaction `obj`.
 
         :param line: the line that the trajectory intersected
         :param trajectory: the trajectory of the ball
@@ -327,7 +330,8 @@ class Canvas:
     def _reflect(self, direction: Point, point: Point, trajectory: Line):
         """
         Multiplies the velocity of the ball by `direction`, continues the path of the ball by calculating the remaining
-        speed using trajectory and point
+        speed using trajectory and point.
+
         :param direction: velocity multiplier
         :param point: The point of interaction
         :param trajectory: The original trajectory of the ball
@@ -342,7 +346,8 @@ class Canvas:
 
     def _get_first_intersection(self, trajectory: Line) -> Union[Tuple[Any, str, Point], None]:
         """
-        Find the first point at which the trajectory interacted with an object
+        Find the first point at which the trajectory interacted with an object.
+
         :param trajectory: the trajectory of the object
         :return: (object interacted with, object edge name, point of interaction)
         """
