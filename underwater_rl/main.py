@@ -1,4 +1,5 @@
 import argparse
+import logging
 import math
 import os
 import pickle
@@ -134,7 +135,8 @@ def train(env, n_episodes, running_reward_history, render=False):
 
         running_reward_history.append(total_reward)
         if episode % 20 == 0:
-            print('Total steps: {} \t Episode: {}/{} \t Total reward: {}'.format(steps_done, episode, t, total_reward))
+            logger.info('Total steps: {}\tEpisode: {}/{}\tAvg reward: {}'.format(steps_done, episode, t, total_reward))
+
     env.close()
     return running_reward_history
 
@@ -164,11 +166,22 @@ def test(env, n_episodes, policy, render=True):
             state = next_state
 
             if done:
-                print("Finished Episode {} with reward {}".format(episode, total_reward))
+                logger.info("Finished Episode {} with reward {}".format(episode, total_reward))
                 break
 
     env.close()
     return
+
+
+def get_logger(store_dir):
+    log_path = os.path.join(store_dir, 'output.log')
+    logger = logging.Logger('train_status', level=logging.DEBUG)
+    stdout_handler = logging.StreamHandler()
+    file_handler = logging.FileHandler(log_path)
+    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s'))
+    logger.addHandler(file_handler)
+    logger.addHandler(stdout_handler)
+    return logger
 
 
 if __name__ == '__main__':
@@ -207,6 +220,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
     parser.print_help()
 
+    # create storage directory
+    if not os.path.exists(args.store_dir):
+        os.makedirs(args.store_dir)
+
     # hyperparameters
     BATCH_SIZE = 32
     GAMMA = 0.99
@@ -220,6 +237,9 @@ if __name__ == '__main__':
     MEMORY_SIZE = 10 * INITIAL_MEMORY
 
     resume = args.resume
+
+    # logging
+    logger = get_logger(args.store_dir)
 
     # create environment
     # env = gym.make("PongNoFrameskip-v4")
@@ -252,7 +272,7 @@ if __name__ == '__main__':
         policy_net.load_state_dict(checkpoint['Net'])
         optimizer.load_state_dict(checkpoint['Optimizer'])
         target_net.load_state_dict(policy_net.state_dict())
-        print("Loading the trained model")
+        logger.info("Loading the trained model")
         running_reward_history = pickle.load(open(args.history, 'rb'))
     else:
         running_reward_history = []
@@ -263,8 +283,6 @@ if __name__ == '__main__':
     memory = ReplayMemory(MEMORY_SIZE)
 
     # train model
-    if not os.path.exists(args.store_dir):
-        os.makedirs(args.store_dir)
     running_reward_history = train(env, args.episodes, running_reward_history, render=RENDER)
     torch.save({'Net': policy_net.state_dict(), 'Optimizer': optimizer.state_dict()},
                os.path.join(args.store_dir, 'dqn_pong_model'))
