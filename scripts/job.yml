@@ -1,0 +1,41 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ${job_name} # specify your job name here
+spec:
+  template:
+    spec:
+      containers:
+      - name: gpu-container
+        image: gitlab-registry.nautilus.optiputer.net/jiacheng/docker-images:gym
+        command: ["/bin/sh","-c"]
+        args:
+        - cd /data/${user}/pong-underwater-rl;
+          git fetch origin ${branch};
+          git checkout ${branch};
+          git pull origin ${branch};
+          pip install -e gym-dynamic-pong;
+          python main.py ${options};
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        - mountPath: /dev/shm
+          name: dshm
+        resources:
+          limits:
+            memory: 8Gi
+            nvidia.com/gpu: "1"
+            cpu: "8"
+          requests:
+            memory: 8Gi
+            nvidia.com/gpu: "1"
+            cpu: "8"
+      restartPolicy: Never
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: storage
+        - name: dshm
+          emptyDir:
+            medium: Memory
+  backoffLimit: 1
