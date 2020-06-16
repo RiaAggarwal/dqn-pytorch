@@ -188,6 +188,8 @@ if __name__ == '__main__':
                         help='paddle length (default: 45)')
     parser.add_argument('--lr', '--learning-rate', default=1e-4, type=float,
                         help='learning rate (default: 1e-4)')
+    parser.add_argument('--network', default='dqn_pong_model',
+                        help='choose a network architecture (default: dqn_pong_model)')
     parser.add_argument('--render', default=False, type=bool,
                         help='Render the game (default: False)')
     parser.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
@@ -240,14 +242,19 @@ if __name__ == '__main__':
     env = make_env(env, episodic_life=True, clip_rewards=True)
 
     # create networks
-    '''
-    policy_net = DQN(n_actions=env.action_space.n).to(device)
-    target_net = DQN(n_actions=env.action_space.n).to(device)
-    target_net.load_state_dict(policy_net.state_dict())
-    '''
-    policy_net = resnet18(num_classes=env.action_space.n).to(device)
-    target_net = resnet18(num_classes=env.action_space.n).to(device)
-    target_net.load_state_dict(policy_net.state_dict())
+    architecture = args.network
+    if architecture == 'dqn_pong_model'
+        policy_net = DQN(n_actions=env.action_space.n).to(device)
+        target_net = DQN(n_actions=env.action_space.n).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+    elif architecture == 'resnet18'
+        policy_net = resnet18(num_classes=env.action_space.n, pretrained=True).to(device)
+        target_net = resnet18(num_classes=env.action_space.n, pretrained=True).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+    else
+        raise ValueError('''Need an available architecture:
+                            dqn_pong_model,
+                            resnet18''')
 
     # setup optimizer
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)
@@ -272,10 +279,10 @@ if __name__ == '__main__':
         os.makedirs(args.store_dir)
     running_reward_history = train(env, args.episodes, running_reward_history, render=RENDER)
     torch.save({'Net': policy_net.state_dict(), 'Optimizer': optimizer.state_dict()},
-               os.path.join(args.store_dir, 'dqn_pong_model'))
+               os.path.join(args.store_dir, architecture))
     # policy_net = torch.load("dqn_pong_model")
     pickle.dump(running_reward_history,
                 open(os.path.join(args.store_dir, 'history.p'), 'wb'))
-    checkpoint = torch.load(os.path.join(args.store_dir, 'dqn_pong_model'), map_location=device)
+    checkpoint = torch.load(os.path.join(args.store_dir, architecture), map_location=device)
     policy_net.load_state_dict(checkpoint['Net'])
     # test(env, 1, policy_net, render=RENDER)
