@@ -68,7 +68,8 @@ def optimize_model():
 
     non_final_mask = torch.tensor(
         tuple(map(lambda s: s is not None, batch.next_state)),
-        device=device, dtype=torch.uint8)
+        device=device, dtype=torch.uint8
+    )
 
     non_final_next_states = torch.cat([s for s in batch.next_state
                                        if s is not None]).to(device)
@@ -99,8 +100,8 @@ def get_state(obs):
     return state.unsqueeze(0)
 
 
-def train(env, n_episodes, running_reward_history, render=False):
-    for episode in range(n_episodes):
+def train(env, n_episodes, history, render=False):
+    for episode in range(1, n_episodes + 1):
         obs = env.reset()
         state = get_state(obs)
         total_reward = 0.0
@@ -133,14 +134,18 @@ def train(env, n_episodes, running_reward_history, render=False):
             if done:
                 break
 
-        running_reward_history.append(total_reward)
+
+        history.append((total_reward, t))
         if episode % LOG_INTERVAL == 0:
-            logger.info('Total steps: {}\tEpisode: {}/{}\tAvg reward: {}'.format(steps_done, episode, t, total_reward))
+            avg_reward = sum([h[0] for h in history[-LOG_INTERVAL:]]) / LOG_INTERVAL
+            avg_steps = int(sum([h[1] for h in history[-LOG_INTERVAL:]]) / LOG_INTERVAL)
+            logger.info(f'Total steps: {steps_done}\tEpisode: {episode}/{t}\tAvg reward: {avg_reward:.2f}\t'
+                        f'Avg steps: {avg_steps}')
         if episode % CHECKPOINT_INTERVAL == 0:
             save_checkpoint(args.store_dir)
 
     env.close()
-    return running_reward_history
+    return history
 
 
 def test(env, n_episodes, policy, render=True):
@@ -178,9 +183,13 @@ def test(env, n_episodes, policy, render=True):
 def get_logger(store_dir):
     log_path = os.path.join(store_dir, 'output.log')
     logger = logging.Logger('train_status', level=logging.DEBUG)
+
     stdout_handler = logging.StreamHandler()
+    stdout_handler.setFormatter(logging.Formatter('%(levelname)s\t%(message)s'))
+
     file_handler = logging.FileHandler(log_path)
-    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s'))
+    file_handler.setFormatter(logging.Formatter('%(asctime)s\t%(levelname)s\t%(message)s'))
+
     logger.addHandler(file_handler)
     logger.addHandler(stdout_handler)
     return logger
@@ -189,7 +198,7 @@ def get_logger(store_dir):
 def save_checkpoint(store_dir):
     torch.save({'Net': policy_net.state_dict(), 'Optimizer': optimizer.state_dict()},
                os.path.join(store_dir, 'dqn_pong_model'))
-    pickle.dump(running_reward_history, open(os.path.join(store_dir, 'history.p'), 'wb'))
+    pickle.dump(history, open(os.path.join(store_dir, 'history.p'), 'wb'))
 
 
 if __name__ == '__main__':
@@ -220,7 +229,7 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoint', default='dqn_pong_model',
                         help='Checkpoint to load if resuming (default: dqn_pong_model)')
     parser.add_argument('--history', default='history.p',
-                        help='History to load if resuming (default: dqn_pong_model)')
+                        help='History to load if resuming (default: history.p)')
     parser.add_argument('--store-dir', dest='store_dir',
                         default=os.path.join('experiments', time.strftime("%Y-%m-%d %H.%M.%S")),
                         help='Path to directory to store experiment results (default: ./experiments/<timestamp>/')
@@ -294,7 +303,7 @@ if __name__ == '__main__':
     memory = ReplayMemory(MEMORY_SIZE)
 
     # train model
-    running_reward_history = train(env, args.episodes, running_reward_history, render=RENDER)
+    history = train(env, args.episodes, history, render=RENDER)
     save_checkpoint(args.store_dir)
     checkpoint = torch.load(os.path.join(args.store_dir, 'dqn_pong_model'), map_location=device)
     policy_net.load_state_dict(checkpoint['Net'])
