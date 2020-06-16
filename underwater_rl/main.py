@@ -134,8 +134,10 @@ def train(env, n_episodes, running_reward_history, render=False):
                 break
 
         running_reward_history.append(total_reward)
-        if episode % 20 == 0:
+        if episode % LOG_INTERVAL == 0:
             logger.info('Total steps: {}\tEpisode: {}/{}\tAvg reward: {}'.format(steps_done, episode, t, total_reward))
+        if episode % CHECKPOINT_INTERVAL == 0:
+            save_checkpoint(args.store_dir)
 
     env.close()
     return running_reward_history
@@ -182,6 +184,12 @@ def get_logger(store_dir):
     logger.addHandler(file_handler)
     logger.addHandler(stdout_handler)
     return logger
+
+
+def save_checkpoint(store_dir):
+    torch.save({'Net': policy_net.state_dict(), 'Optimizer': optimizer.state_dict()},
+               os.path.join(store_dir, 'dqn_pong_model'))
+    pickle.dump(running_reward_history, open(os.path.join(store_dir, 'history.p'), 'wb'))
 
 
 if __name__ == '__main__':
@@ -236,9 +244,12 @@ if __name__ == '__main__':
     INITIAL_MEMORY = 10000
     MEMORY_SIZE = 10 * INITIAL_MEMORY
 
+    # number episodes between logging and saving
+    LOG_INTERVAL = 20
+    CHECKPOINT_INTERVAL = 100
+
     resume = args.resume
 
-    # logging
     logger = get_logger(args.store_dir)
 
     # create environment
@@ -284,11 +295,7 @@ if __name__ == '__main__':
 
     # train model
     running_reward_history = train(env, args.episodes, running_reward_history, render=RENDER)
-    torch.save({'Net': policy_net.state_dict(), 'Optimizer': optimizer.state_dict()},
-               os.path.join(args.store_dir, 'dqn_pong_model'))
-    # policy_net = torch.load("dqn_pong_model")
-    pickle.dump(running_reward_history,
-                open(os.path.join(args.store_dir, 'history.p'), 'wb'))
+    save_checkpoint(args.store_dir)
     checkpoint = torch.load(os.path.join(args.store_dir, 'dqn_pong_model'), map_location=device)
     policy_net.load_state_dict(checkpoint['Net'])
     # test(env, 1, policy_net, render=RENDER)
