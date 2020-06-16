@@ -243,15 +243,15 @@ if __name__ == '__main__':
 
     # create networks
     architecture = args.network
-    if architecture == 'dqn_pong_model'
+    if architecture == 'dqn_pong_model':
         policy_net = DQN(n_actions=env.action_space.n).to(device)
         target_net = DQN(n_actions=env.action_space.n).to(device)
         target_net.load_state_dict(policy_net.state_dict())
-    elif architecture == 'resnet18'
+    elif architecture == 'resnet18':
         policy_net = resnet18(num_classes=env.action_space.n, pretrained=True).to(device)
         target_net = resnet18(num_classes=env.action_space.n, pretrained=True).to(device)
         target_net.load_state_dict(policy_net.state_dict())
-    else
+    else:
         raise ValueError('''Need an available architecture:
                             dqn_pong_model,
                             resnet18''')
