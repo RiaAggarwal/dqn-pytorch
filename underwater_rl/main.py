@@ -295,7 +295,7 @@ if __name__ == '__main__':
         logger.info("Loading the trained model")
         running_reward_history = pickle.load(open(args.history, 'rb'))
     else:
-        running_reward_history = []
+        history = []
 
     steps_done = 0
 
