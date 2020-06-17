@@ -292,7 +292,7 @@ if __name__ == '__main__':
         target_net = DQN(n_actions=env.action_space.n).to(device)
         target_net.load_state_dict(policy_net.state_dict())
     elif architecture == 'resnet18':
-        if pretrain == True or pretrain == False:
+        if isinstance(pretrain, bool):
             policy_net = resnet18(pretrained=pretrain)
             num_ftrs = policy_net.fc.in_features
             policy_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3,bias=False)
