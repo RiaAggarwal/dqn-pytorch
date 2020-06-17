@@ -12,6 +12,7 @@ from itertools import count
 import gym
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
@@ -220,6 +221,8 @@ if __name__ == '__main__':
                         help='learning rate (default: 1e-4)')
     parser.add_argument('--network', default='dqn_pong_model',
                         help='choose a network architecture (default: dqn_pong_model)')
+    parser.add_argument('--pretrain', default=False, type=bool,
+                        help='whether need pretrained network (default: False)')
     parser.add_argument('--render', default=False, type=bool,
                         help='Render the game (default: False)')
     parser.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
@@ -283,14 +286,26 @@ if __name__ == '__main__':
 
     # create networks
     architecture = args.network
+    pretrain = args.pretrain
     if architecture == 'dqn_pong_model':
         policy_net = DQN(n_actions=env.action_space.n).to(device)
         target_net = DQN(n_actions=env.action_space.n).to(device)
         target_net.load_state_dict(policy_net.state_dict())
     elif architecture == 'resnet18':
-        policy_net = resnet18(num_classes=env.action_space.n).to(device)
-        target_net = resnet18(num_classes=env.action_space.n).to(device)
-        target_net.load_state_dict(policy_net.state_dict())
+        if pretrain == True or pretrain == False:
+            policy_net = resnet18(pretrained=pretrain)
+            num_ftrs = policy_net.fc.in_features
+            policy_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3,bias=False)
+            policy_net.fc = nn.Linear(num_ftrs, env.action_space.n)
+            policy_net = policy_net.to(device)
+            target_net = resnet18(pretrained=pretrain)
+            num_ftrs = target_net.fc.in_features
+            target_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3,bias=False)
+            target_net.fc = nn.Linear(num_ftrs, env.action_space.n)
+            target_net = target_net.to(device)
+            target_net.load_state_dict(policy_net.state_dict())
+        else:
+            raise ValueError('Need a boolean variable for pretrain: True / False')
     else:
         raise ValueError('''Need an available architecture:
                             dqn_pong_model,
