@@ -123,8 +123,14 @@ if [ -n "$episodes" ]; then
   options+=$episodes
 fi
 if [ -n "$resume" ]; then
-  options+=" --resume "
-  options+=$resume
+  if [ "$resume" = "True" ]; then
+    options+=" --resume "
+  fi
+fi
+if [ -n "$pretrain" ]; then
+  if [ "$pretrain" = "True" ]; then
+    options+=" --pretrain "
+  fi
 fi
 if [ -n "$checkpoint" ]; then
   options+=" --checkpoint "
@@ -157,7 +163,11 @@ export branch
 
 source /dev/stdin <<<"$(echo 'cat <<EOF >final.yml'; cat job.yml; echo EOF;)"
 
-cat final.yml | kubectl create -f -
+if [ "$preview" ]; then
+  cat final.yml
+else
+  cat final.yml | kubectl create -f -
+fi
 
 rm -f final.yml
 
@@ -179,6 +189,7 @@ Run kubernetes job
   -n, --name        Job name to append
   -b, --branch      Branch to run (default: master)
   -f, --file        Config file (default: experiment-config.yml)
+  -p, --preview     Preview the created job file without running it
   -q, --quiet       Quiet (no output)
   -l, --log         Print log to file
   -v, --verbose     Output more information. (Items echoed to 'verbose')
@@ -237,6 +248,7 @@ while [[ $1 = -?* ]]; do
     -n|--name) shift; name=${1} ;;
     -b|--branch) shift; branch=${1} ;;
     -f|--file) shift; file=${1} ;;
+    -p|--preview) preview=1 ;;
     -v|--verbose) verbose=1 ;;
     -l|--log) printLog=1 ;;
     -q|--quiet) quiet=1 ;;
