@@ -201,6 +201,23 @@ def save_checkpoint(store_dir):
     pickle.dump(history, open(os.path.join(store_dir, 'history.p'), 'wb'))
 
 
+# noinspection PyProtectedMember
+def get_args_status_string(parser: argparse.ArgumentParser, args: argparse.Namespace) -> str:
+    """
+    Returns a formatted string of the passed arguments.
+    
+    :param parser: The `argparse.ArgumentParser` object to read from
+    :param args: The values of the parsed arguments from `parser.parse_args()`
+    :return: "--width 160 --height 160 --ball 3.0 ..."
+    """
+    args_info = parser._option_string_actions
+    s = ''
+    for k, v in args_info.items():
+        if isinstance(v, argparse._StoreAction):
+            s += f'{k} {args.__dict__[v.dest]} '
+    return s
+
+
 if __name__ == '__main__':
     # arguments
     parser = argparse.ArgumentParser(description='Dynamic Pong RL')
@@ -218,6 +235,8 @@ if __name__ == '__main__':
                         help='paddle length (default: 45)')
     parser.add_argument('--lr', '--learning-rate', default=1e-4, type=float,
                         help='learning rate (default: 1e-4)')
+    parser.add_argument('--network', default='dqn_pong_model',
+                        help='choose a network architecture (default: dqn_pong_model)')
     parser.add_argument('--render', default=False, type=bool,
                         help='Render the game (default: False)')
     parser.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
@@ -235,7 +254,7 @@ if __name__ == '__main__':
                         help='Path to directory to store experiment results (default: ./experiments/<timestamp>/')
 
     args = parser.parse_args()
-    parser.print_help()
+
 
     # create storage directory
     if not os.path.exists(args.store_dir):
@@ -260,6 +279,7 @@ if __name__ == '__main__':
     resume = args.resume
 
     logger = get_logger(args.store_dir)
+    logger.info(get_args_status_string(parser, args))
 
     # create environment
     # env = gym.make("PongNoFrameskip-v4")
@@ -280,9 +300,19 @@ if __name__ == '__main__':
     env = make_env(env, episodic_life=True, clip_rewards=True)
 
     # create networks
-    policy_net = DQN(n_actions=env.action_space.n).to(device)
-    target_net = DQN(n_actions=env.action_space.n).to(device)
-    target_net.load_state_dict(policy_net.state_dict())
+    architecture = args.network
+    if architecture == 'dqn_pong_model':
+        policy_net = DQN(n_actions=env.action_space.n).to(device)
+        target_net = DQN(n_actions=env.action_space.n).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+    elif architecture == 'resnet18':
+        policy_net = resnet18(num_classes=env.action_space.n).to(device)
+        target_net = resnet18(num_classes=env.action_space.n).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+    else:
+        raise ValueError('''Need an available architecture:
+                            dqn_pong_model,
+                            resnet18''')
 
     # setup optimizer
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)
@@ -308,5 +338,3 @@ if __name__ == '__main__':
     checkpoint = torch.load(os.path.join(args.store_dir, 'dqn_pong_model'), map_location=device)
     policy_net.load_state_dict(checkpoint['Net'])
     # test(env, 1, policy_net, render=RENDER)
-
-    # TODO: set up command line arguments for all the various configuration variables
