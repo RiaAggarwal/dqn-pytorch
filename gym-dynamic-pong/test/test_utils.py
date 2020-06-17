@@ -5,7 +5,7 @@ import shutil
 import unittest
 
 from gym_dynamic_pong.envs import DynamicPongEnv
-from utils import Line, Point
+from utils import Line, Point, Circle
 from utils.sprites import Ball
 
 
@@ -159,3 +159,26 @@ class TestBall(unittest.TestCase):
     def test_unit_velocity_sets_angle_to_315_for_1_neg1(self):
         self.ball.unit_velocity = Point(1., -1.)
         self.assertAlmostEqual(math.pi * 7 / 4, self.ball.angle)
+
+
+class TestCircle(unittest.TestCase):
+    def test_circle_at_2_2_with_radius_sqrt2_intersects_45deg_ray_at_1_1(self):
+        line = Line(Point(0, 0), Point(10, 10))
+        circle = Circle(Point(2, 2), math.sqrt(2))
+        result = circle.get_intersection(line)
+        self.assertAlmostEqual(result.x, 1)
+        self.assertAlmostEqual(result.y, 1)
+
+    def test_circle_at_2_2_with_radius_sqrt2_intersects_225deg_ray_at_3_3(self):
+        line = Line(Point(10, 10), Point(0, 0))
+        circle = Circle(Point(2, 2), math.sqrt(2))
+        result = circle.get_intersection(line)
+        self.assertAlmostEqual(result.x, 3)
+        self.assertAlmostEqual(result.y, 3)
+
+    def test_circle_at_3_2_with_radius_sqrt2_intersects_line_from_0_0_to_20_10_ray_at_2_1(self):
+        line = Line(Point(0, 0), Point(20, 10))
+        circle = Circle(Point(3, 2), math.sqrt(2))
+        result = circle.get_intersection(line)
+        self.assertAlmostEqual(result.x, 2)
+        self.assertAlmostEqual(result.y, 1)

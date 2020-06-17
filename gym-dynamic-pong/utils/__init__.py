@@ -1,1 +1,1 @@
-from .primitives import Line, Rectangle, Point
+from .primitives import Line, Rectangle, Point, Circle

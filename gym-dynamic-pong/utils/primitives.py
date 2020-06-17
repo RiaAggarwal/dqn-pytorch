@@ -124,7 +124,7 @@ class Line:
 
     def get_intersection(self, other) -> Union[Point, None]:
         """
-        Return the intersection point of two line segments if they intersect, None if they done
+        Return the intersection point of two line segments if they intersect, None if they don't
 
         :param other: A Line object
         :return: a `Point` or `None`
@@ -147,7 +147,7 @@ class Line:
 
         return self.start + u * s_i
 
-    def _in_segment(self, point: Point) -> bool:
+    def in_segment(self, point: Point) -> bool:
         """
         Determine if collinear point `other` is in segment self.
 
@@ -172,7 +172,7 @@ class Line:
         :param point1: (x1, y1)
         :param point2: (x2, y2)
         """
-        if self.start.l1_distance(point1) > self.start.l1_distance(point2):
+        if self.start.l1_distance(point1) < self.start.l1_distance(point2):
             return True
         else:
             return False
@@ -199,6 +199,59 @@ class Line:
 
     def __iter__(self):
         return (p for p in (self.start, self.end))
+
+
+class Circle:
+    def __init__(self, center: Point, radius: float, max_width=210, max_height=160):
+        self.center = center
+        self.radius = radius
+        self.max_width = max_width
+        self.max_height = max_height
+
+    def get_intersection(self, line: Line) -> Union[Point, None]:
+        """
+        Return the first intersection point of the line segment and the circle if they intersect, None if they don't
+
+        :param line:
+        :return:
+        """
+        d = line.end - line.start
+        dr = d.dot(d)
+
+        det = line.end.perp(line.start)
+
+        discriminant = self.radius ** 2 * dr - det ** 2
+        if discriminant <= 0:  # line misses (interpret tangent as a miss)
+            return None
+        else:
+            discriminant = math.sqrt(discriminant)
+
+            a = det * d.y
+            b = math.copysign(1., d.y) * d.x * discriminant
+            c = -det * d.x
+            d = abs(d.x) * discriminant
+
+            t1_x = (a + b) / dr
+            t1_y = (c + d) / dr
+            t1 = Point(t1_x, t1_y) + self.center
+
+            t2_x = (a - b) / dr
+            t2_y = (c - d) / dr
+            t2 = Point(t2_x, t2_y) + self.center
+
+            t1_in_segment = line.in_segment(t1)
+            t2_in_segment = line.in_segment(t2)
+            if t1_in_segment and t2_in_segment:
+                if line.point1_before_point2(t1, t2):
+                    return t1
+                else:
+                    return t2
+            elif t1_in_segment:
+                return t1
+            elif t2_in_segment:
+                return t2
+            else:
+                return None
 
 
 class Rectangle:
