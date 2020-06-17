@@ -15,6 +15,7 @@ spec:
           git checkout ${branch};
           git pull origin ${branch};
           pip install -e gym-dynamic-pong;
+          cd underwater_rl;
           python main.py ${options};
         volumeMounts:
         - mountPath: /data
