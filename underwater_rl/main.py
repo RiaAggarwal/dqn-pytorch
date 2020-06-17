@@ -248,8 +248,8 @@ if __name__ == '__main__':
         target_net = DQN(n_actions=env.action_space.n).to(device)
         target_net.load_state_dict(policy_net.state_dict())
     elif architecture == 'resnet18':
-        policy_net = resnet18(num_classes=env.action_space.n, pretrained=True).to(device)
-        target_net = resnet18(num_classes=env.action_space.n, pretrained=True).to(device)
+        policy_net = resnet18(num_classes=env.action_space.n).to(device)
+        target_net = resnet18(num_classes=env.action_space.n).to(device)
         target_net.load_state_dict(policy_net.state_dict())
     else:
         raise ValueError('''Need an available architecture:
