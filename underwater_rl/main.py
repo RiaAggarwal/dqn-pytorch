@@ -201,6 +201,23 @@ def save_checkpoint(store_dir):
     pickle.dump(history, open(os.path.join(store_dir, 'history.p'), 'wb'))
 
 
+# noinspection PyProtectedMember
+def get_args_status_string(parser: argparse.ArgumentParser, args: argparse.Namespace) -> str:
+    """
+    Returns a formatted string of the passed arguments.
+    
+    :param parser: The `argparse.ArgumentParser` object to read from
+    :param args: The values of the parsed arguments from `parser.parse_args()`
+    :return: "--width 160 --height 160 --ball 3.0 ..."
+    """
+    args_info = parser._option_string_actions
+    s = ''
+    for k, v in args_info.items():
+        if isinstance(v, argparse._StoreAction):
+            s += f'{k} {args.__dict__[v.dest]} '
+    return s
+
+
 if __name__ == '__main__':
     # arguments
     parser = argparse.ArgumentParser(description='Dynamic Pong RL')
@@ -237,7 +254,7 @@ if __name__ == '__main__':
                         help='Path to directory to store experiment results (default: ./experiments/<timestamp>/')
 
     args = parser.parse_args()
-    parser.print_help()
+
 
     # create storage directory
     if not os.path.exists(args.store_dir):
@@ -262,6 +279,7 @@ if __name__ == '__main__':
     resume = args.resume
 
     logger = get_logger(args.store_dir)
+    logger.info(get_args_status_string(parser, args))
 
     # create environment
     # env = gym.make("PongNoFrameskip-v4")
