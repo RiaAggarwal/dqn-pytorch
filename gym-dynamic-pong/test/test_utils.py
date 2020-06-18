@@ -5,8 +5,8 @@ import shutil
 import unittest
 
 from gym_dynamic_pong.envs import DynamicPongEnv
-from utils import Line, Point, Circle
-from utils.sprites import Ball
+from gym_dynamic_pong.utils import Line, Point, Circle
+from gym_dynamic_pong.utils.sprites import Ball
 
 
 class TestLine(unittest.TestCase):
