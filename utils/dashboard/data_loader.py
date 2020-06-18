@@ -4,7 +4,7 @@ from typing import List, Tuple, Dict
 
 import pandas as pd
 
-root_dir = os.path.dirname(os.path.dirname(__file__))
+root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
 
 def load_history(experiment_dir: str) -> List[Tuple[float, int]]:
@@ -62,37 +62,45 @@ def get_multi_index_history_df(experiments: List[str]) -> pd.DataFrame:
     return df
 
 
-def get_rewards_history_df(experiments: List[str]) -> pd.DataFrame:
-    """
-    Get a dataframe of the reward after each episode for each experiment.
-
-    :param experiments: List of experiments.
-    :return: `pd.DataFrame`
-    """
+def _get_history_df(experiments, selector: int):
     df = pd.DataFrame()
     for e in experiments:
         history = load_history(os.path.join(root_dir, 'experiments', e))
-        rewards = [v[0] for v in history]
+        rewards = [v[selector] for v in history]
 
         temp_df = pd.DataFrame(rewards, columns=[e])
         df = pd.concat([df, temp_df], axis=1)
-
     return df
 
 
-def get_steps_history_df(experiments: List[str]) -> pd.DataFrame:
-    """
-    Get a dataframe of the number of steps in each episode for each experiment.
+def get_moving_average(df: pd.DataFrame, moving_avg_len) -> pd.DataFrame:
+    if moving_avg_len <= 1:
+        return df
+    else:
+        for column in df.columns:
+            df[column] = df[column].rolling(window=moving_avg_len).mean()
+    return df
 
+
+def get_rewards_history_df(experiments: List[str], moving_avg_len=1) -> pd.DataFrame:
+    """
+    Get a dataframe of the reward after each episode for each experiment.
+
+    :param moving_avg_len:
     :param experiments: List of experiments.
     :return: `pd.DataFrame`
     """
-    df = pd.DataFrame()
-    for e in experiments:
-        history = load_history(os.path.join(root_dir, 'experiments', e))
-        steps = [v[1] for v in history]
+    df = _get_history_df(experiments, 0)
+    return get_moving_average(df, moving_avg_len)
 
-        temp_df = pd.DataFrame(steps, columns=[e])
-        df = pd.concat([df, temp_df], axis=1)
 
-    return df
+def get_steps_history_df(experiments: List[str], moving_avg_len=1) -> pd.DataFrame:
+    """
+    Get a dataframe of the number of steps in each episode for each experiment.
+
+    :param moving_avg_len:
+    :param experiments: List of experiments.
+    :return: `pd.DataFrame`
+    """
+    df = _get_history_df(experiments, 1)
+    return get_moving_average(df, moving_avg_len)
