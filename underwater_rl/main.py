@@ -102,6 +102,7 @@ def get_state(obs):
 
 
 def train(env, n_episodes, history, render=False):
+    global epoch
     for episode in range(1, n_episodes + 1):
         obs = env.reset()
         state = get_state(obs)
@@ -128,19 +129,18 @@ def train(env, n_episodes, history, render=False):
 
             if steps_done > INITIAL_MEMORY:
                 optimize_model()
-
                 if steps_done % TARGET_UPDATE == 0:
                     target_net.load_state_dict(policy_net.state_dict())
 
             if done:
                 break
-
-
+        
+        epoch += 1
         history.append((total_reward, t))
         if episode % LOG_INTERVAL == 0:
             avg_reward = sum([h[0] for h in history[-LOG_INTERVAL:]]) / LOG_INTERVAL
             avg_steps = int(sum([h[1] for h in history[-LOG_INTERVAL:]]) / LOG_INTERVAL)
-            logger.info(f'Total steps: {steps_done}\tEpisode: {episode}/{t}\tAvg reward: {avg_reward:.2f}\t'
+            logger.info(f'Total steps: {steps_done}\tEpisode: {epoch}/{t}\tAvg reward: {avg_reward:.2f}\t'
                         f'Avg steps: {avg_steps}')
         if episode % CHECKPOINT_INTERVAL == 0:
             save_checkpoint(args.store_dir)
@@ -197,7 +197,9 @@ def get_logger(store_dir):
 
 
 def save_checkpoint(store_dir):
-    torch.save({'Net': policy_net.state_dict(), 'Optimizer': optimizer.state_dict()},
+    global steps_done
+    global epoch
+    torch.save({'Net': policy_net.state_dict(), 'Optimizer': optimizer.state_dict(), 'Steps_Done':steps_done, 'Epoch':epoch },
                os.path.join(store_dir, 'dqn_pong_model'))
     pickle.dump(history, open(os.path.join(store_dir, 'history.p'), 'wb'))
 
@@ -331,18 +333,21 @@ if __name__ == '__main__':
 
     # setup optimizer
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)
+    steps_done = 0
+    epoch = 0
 
     if (resume == True):
         checkpoint = torch.load(args.checkpoint, map_location=device)
         policy_net.load_state_dict(checkpoint['Net'])
         optimizer.load_state_dict(checkpoint['Optimizer'])
         target_net.load_state_dict(policy_net.state_dict())
+        steps_done = checkpoint['Steps_Done']
+        epoch = checkpoint['Epoch']
         logger.info("Loading the trained model")
-        running_reward_history = pickle.load(open(args.history, 'rb'))
+        history = pickle.load(open(args.history, 'rb'))
     else:
         history = []
 
-    steps_done = 0
 
     # initialize replay memory
     memory = ReplayMemory(MEMORY_SIZE)

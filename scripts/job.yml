@@ -26,11 +26,11 @@ spec:
           limits:
             memory: 8Gi
             nvidia.com/gpu: "1"
-            cpu: "4"
+            cpu: "2"
           requests:
             memory: 8Gi
             nvidia.com/gpu: "1"
-            cpu: "2"
+            cpu: "1"
       restartPolicy: Never
       volumes:
         - name: data
