@@ -134,13 +134,13 @@ def train(env, n_episodes, history, render=False):
 
             if done:
                 break
-
+        
         epoch += 1
         history.append((total_reward, t))
         if episode % LOG_INTERVAL == 0:
             avg_reward = sum([h[0] for h in history[-LOG_INTERVAL:]]) / LOG_INTERVAL
             avg_steps = int(sum([h[1] for h in history[-LOG_INTERVAL:]]) / LOG_INTERVAL)
-            logger.info(f'Total steps: {steps_done}\tEpisode: {episode}/{t}\tAvg reward: {avg_reward:.2f}\t'
+            logger.info(f'Total steps: {steps_done}\tEpisode: {epoch}/{t}\tAvg reward: {avg_reward:.2f}\t'
                         f'Avg steps: {avg_steps}')
         if episode % CHECKPOINT_INTERVAL == 0:
             save_checkpoint(args.store_dir)
@@ -344,7 +344,7 @@ if __name__ == '__main__':
         steps_done = checkpoint['Steps_Done']
         epoch = checkpoint['Epoch']
         logger.info("Loading the trained model")
-        running_reward_history = pickle.load(open(args.history, 'rb'))
+        history = pickle.load(open(args.history, 'rb'))
     else:
         history = []
 
