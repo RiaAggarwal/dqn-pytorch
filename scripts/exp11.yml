@@ -1,7 +1,7 @@
 width: 160
 height: 160
 ball: 3.0
-snell: 3.0
+snell: 5.0
 paddle_speed: 3.0
 paddle_length: 45
 learning_rate: 1e-4
@@ -10,5 +10,4 @@ episodes: 4000
 resume: False
 #checkpoint: dqn_pong_model
 #history: history.p
-network: dqn_pong_model
 pretrain: False

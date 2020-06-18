@@ -122,6 +122,10 @@ if [ -n "$episodes" ]; then
   options+=" --episodes "
   options+=$episodes
 fi
+if [ -n "$network" ]; then
+  options+=" --network "
+  options+=$network
+fi
 if [ -n "$resume" ]; then
   if [ "$resume" = "True" ]; then
     options+=" --resume "
