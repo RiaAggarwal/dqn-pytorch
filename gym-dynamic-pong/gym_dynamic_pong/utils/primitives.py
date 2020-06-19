@@ -224,15 +224,15 @@ class Circle:
         """
         Return the first intersection point of the line segment and the circle if they intersect, None if they don't
 
-        :param line:
-        :return:
+        :param line: a `primitives.Line` object
+        :return: The intersection point or None
         """
         # shift the coordinate system to the center of the circle
         line -= self.center
         d = line.end - line.start
         dr = d.dot(d)
 
-        det = line.end.perp(line.start)
+        det = line.start.perp(line.end)
 
         discriminant = self.radius ** 2 * dr - det ** 2
         if discriminant <= 0:  # line misses (interpret tangent as a miss)
@@ -240,17 +240,12 @@ class Circle:
         else:
             discriminant = math.sqrt(discriminant)
 
-            a = det * d.y
-            b = math.copysign(1., d.y) * d.x * discriminant
-            c = -det * d.x
-            d = abs(d.x) * discriminant
-
-            t1_x = (a + b) / dr
-            t1_y = (c + d) / dr
+            t1_x = (det * d.y + math.copysign(1., d.y) * d.x * discriminant) / dr
+            t1_y = (-det * d.x + abs(d.y) * discriminant) / dr
             t1 = Point(t1_x, t1_y)
 
-            t2_x = (a - b) / dr
-            t2_y = (c - d) / dr
+            t2_x = (det * d.y - math.copysign(1., d.y) * d.x * discriminant) / dr
+            t2_y = (-det * d.x - abs(d.y) * discriminant) / dr
             t2 = Point(t2_x, t2_y)
 
             t1_in_segment = line.in_segment(t1)

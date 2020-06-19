@@ -140,45 +140,72 @@ class TestBall(unittest.TestCase):
         self.ball.unit_velocity = Point(1., 1.)
         self.assertAlmostEqual(math.pi / 4, self.ball.angle)
 
-    def test_unit_velocity_sets_angle_to_135_for_neg1_1(self):
+    def test_unit_velocity_sets_angle_to_135_for_n1_1(self):
         self.ball.unit_velocity = Point(-1., 1.)
         self.assertAlmostEqual(math.pi * 3 / 4, self.ball.angle)
 
-    def test_unit_velocity_sets_angle_to_150_for_neg_sqrt3_1(self):
+    def test_unit_velocity_sets_angle_to_150_for_n_sqrt3_1(self):
         self.ball.unit_velocity = Point(-math.sqrt(3), 1)
         self.assertAlmostEqual(math.pi * 5 / 6, self.ball.angle)
 
-    def test_unit_velocity_sets_angle_to_180_for_neg1_0(self):
+    def test_unit_velocity_sets_angle_to_180_for_n1_0(self):
         self.ball.unit_velocity = Point(-1., 0.)
         self.assertAlmostEqual(math.pi, self.ball.angle)
 
-    def test_unit_velocity_sets_angle_to_225_for_neg1_neg1(self):
+    def test_unit_velocity_sets_angle_to_225_for_n1_n1(self):
         self.ball.unit_velocity = Point(-1., -1.)
         self.assertAlmostEqual(math.pi * 5 / 4, self.ball.angle)
 
-    def test_unit_velocity_sets_angle_to_315_for_1_neg1(self):
+    def test_unit_velocity_sets_angle_to_315_for_1_n1(self):
         self.ball.unit_velocity = Point(1., -1.)
         self.assertAlmostEqual(math.pi * 7 / 4, self.ball.angle)
 
 
 class TestCircle(unittest.TestCase):
-    def test_circle_at_2_2_with_radius_sqrt2_intersects_45deg_ray_at_1_1(self):
+    def test_circle_at_2_2_with_radius_sqrt2_intersects_45deg_at_1_1(self):
         line = Line(Point(0, 0), Point(10, 10))
         circle = Circle(Point(2, 2), math.sqrt(2))
         result = circle.get_intersection(line)
         self.assertAlmostEqual(result.x, 1)
         self.assertAlmostEqual(result.y, 1)
 
-    def test_circle_at_2_2_with_radius_sqrt2_intersects_225deg_ray_at_3_3(self):
+    def test_circle_at_2_2_with_radius_sqrt2_intersects_225deg_at_3_3(self):
         line = Line(Point(10, 10), Point(0, 0))
         circle = Circle(Point(2, 2), math.sqrt(2))
         result = circle.get_intersection(line)
         self.assertAlmostEqual(result.x, 3)
         self.assertAlmostEqual(result.y, 3)
 
-    def test_circle_at_0_0_with_radius_sqrt2_intersects_line_from_neg3_neg2_to_3_1_ray_at_neg1_neg1(self):
+    def test_circle_at_0_0_with_radius_sqrt2_intersects_line_from_n3_n2_to_3_1_at_n1_n1(self):
         line = Line(Point(-3, -2), Point(3, 1))
         circle = Circle(Point(0, 0), math.sqrt(2))
         result = circle.get_intersection(line)
         self.assertAlmostEqual(result.x, -1)
         self.assertAlmostEqual(result.y, -1)
+
+    def test_circle_at_0_0_with_radius_sqrt2_intersects_line_from_3_1_to_n3_n2_at_1p4_0p2(self):
+        line = Line(Point(3, 1), Point(-3, -2))
+        circle = Circle(Point(0, 0), math.sqrt(2))
+        result = circle.get_intersection(line)
+        self.assertAlmostEqual(result.x, 1.4)
+        self.assertAlmostEqual(result.y, 0.2)
+
+    def test_circle_at_0_0_with_radius_sqrt2_intersects_line_from_0_n0p5_to_3_1_at_1p4_0p2(self):
+        line = Line(Point(0, -0.5), Point(3, 1))
+        circle = Circle(Point(0, 0), math.sqrt(2))
+        result = circle.get_intersection(line)
+        self.assertAlmostEqual(result.x, 1.4)
+        self.assertAlmostEqual(result.y, 0.2)
+
+    def test_circle_at_0_0_with_radius_sqrt2_intersects_line_from_0_n0p5_to_n3_n2_at_n1_n1(self):
+        line = Line(Point(0, -0.5), Point(-3, -2))
+        circle = Circle(Point(0, 0), math.sqrt(2))
+        result = circle.get_intersection(line)
+        self.assertAlmostEqual(result.x, -1)
+        self.assertAlmostEqual(result.y, -1)
+
+    def test_circle_at_0_0_with_radius_1_does_not_intersect_line_from_0_0_to_0p1_0p1(self):
+        line = Line(Point(0, 0), Point(0.1, 0.1))
+        circle = Circle(Point(0, 0), math.sqrt(2))
+        result = circle.get_intersection(line)
+        self.assertIsNone(result)
