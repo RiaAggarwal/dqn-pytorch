@@ -176,9 +176,9 @@ class TestCircle(unittest.TestCase):
         self.assertAlmostEqual(result.x, 3)
         self.assertAlmostEqual(result.y, 3)
 
-    def test_circle_at_3_2_with_radius_sqrt2_intersects_line_from_0_0_to_20_10_ray_at_2_1(self):
-        line = Line(Point(0, 0), Point(20, 10))
-        circle = Circle(Point(3, 2), math.sqrt(2))
+    def test_circle_at_0_0_with_radius_sqrt2_intersects_line_from_neg3_neg2_to_3_1_ray_at_neg1_neg1(self):
+        line = Line(Point(-3, -2), Point(3, 1))
+        circle = Circle(Point(0, 0), math.sqrt(2))
         result = circle.get_intersection(line)
-        self.assertAlmostEqual(result.x, 2)
-        self.assertAlmostEqual(result.y, 1)
+        self.assertAlmostEqual(result.x, -1)
+        self.assertAlmostEqual(result.y, -1)
