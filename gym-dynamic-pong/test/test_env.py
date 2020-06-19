@@ -236,6 +236,17 @@ class TestEnvironmentBehaviorWithRefraction(TestEnvironmentBehavior):
         self.create_env()
         self.env.step(0)
 
+    """
+    Put the ball at the boundary of the snell layer and test that it refracts at the expected angle.
+        case1: leaving snell to the right at positive angle
+        case2: leaving snell to the right at negative angle
+        case3: leaving snell to the left at positive angle
+        case4: leaving snell to the left at negative angle
+        case5: entering snell to the left at positive angle
+        case6: entering snell to the left at negative angle
+        case7: entering snell to the right at positive angle
+        case8: entering snell to the right at negative angle
+    """
     def test_ball_leaving_snell_at_pi_12_refracts_to_0p544(self):
         self.env.env.ball.angle = math.pi / 12
         self.env.env.ball.x_pos = self.env.env.snell.right_bound - self.env.default_speed / 10

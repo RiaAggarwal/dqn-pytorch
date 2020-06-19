@@ -296,23 +296,54 @@ class Canvas:
         return self._finish_step_ball(point, trajectory)
 
     def _refract(self, point: Point, trajectory: Line, boundary: Line):
+        s0, s1 = self._get_start_and_end_speed(trajectory)
+
+        angle = boundary.angle_to_normal(trajectory)
+        if s1 > s0:  # if the second speed is faster, there is a critical angle
+            critical_angle = math.asin(s0 / s1)
+            if abs(angle) >= critical_angle:
+                # TODO: reflect to arbitrary angle (non-vertical interface)
+                self._reflect(Point(-1, 1), point, trajectory)
+                return
+        new_angle = math.asin(s1 / s0 * math.sin(angle))
+
+        # TODO: verify this works with a non-vertical interface
+        # adjust based on the angle of the boundary assuming incidence from the left side of the boundary
+        if 0 <= boundary.angle < math.pi / 2:  # in the first quadrant
+            boundary_angle = boundary.angle
+            new_angle = boundary_angle - math.pi / 2 + new_angle
+        elif math.pi / 2 <= boundary.angle < math.pi:  # in the second quadrant
+            boundary_angle = math.pi - boundary.angle
+            new_angle = math.pi / 2 - boundary_angle + new_angle
+        elif math.pi <= boundary.angle < 3 * math.pi / 2:  # in the third quadrant
+            boundary_angle = math.pi - boundary.angle
+            new_angle = boundary_angle - math.pi / 2 + new_angle
+        elif 2 * math.pi / 3 <= boundary.angle < 2 * math.pi:  # in the fourth quadrant
+            boundary_angle = 2 * math.pi - boundary.angle
+            new_angle = math.pi / 2 - boundary_angle - new_angle
+        else:
+            raise ValueError(f'Unexpected angle {boundary.angle}')
+
+        # reflect the final angle along vertical axis if ball was incident from the right side of the boundary
+        assert -math.pi / 2 <= boundary_angle <= math.pi / 2, "boundary_angle should be in first or fourth quadrant"
+        if boundary_angle >= 0 and boundary_angle < trajectory.angle % (2 * math.pi) < boundary_angle + math.pi:
+            self.ball.angle = math.pi - new_angle
+        elif (boundary_angle < 0 and
+              boundary_angle % (2 * math.pi) + math.pi < trajectory.angle % (2 * math.pi) < boundary_angle % (2 * math.pi)):
+            self.ball.angle = math.pi - new_angle
+        else:
+            self.ball.angle = new_angle
+
+        return self._finish_step_ball(point, trajectory)
+
+    def _get_start_and_end_speed(self, trajectory):
         if self.snell.is_in(trajectory.start):
             s0 = self.snell.speed
             s1 = self.default_ball_speed
         else:
             s0 = self.default_ball_speed
             s1 = self.snell.speed
-
-        angle = abs(boundary.angle_to_normal(trajectory))
-        if s1 > s0:  # if the second speed is faster, there is a critical angle
-            critical_angle = math.asin(s0 / s1)
-            if angle >= critical_angle:
-                # TODO: reflect to arbitrary angle
-                self._reflect(Point(-1, 1), point, trajectory)
-                return
-        new_angle = math.asin(s1 / s0 * math.sin(angle))
-        self.ball.angle -= angle - new_angle
-        return self._finish_step_ball(point, trajectory)
+        return s0, s1
 
     def _interact_border(self, edge: str, point: Point, trajectory: Line):
         reward = 0
