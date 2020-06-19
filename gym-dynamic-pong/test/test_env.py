@@ -232,9 +232,84 @@ class TestEnvironmentBehaviorWithRefraction(TestEnvironmentBehavior):
     def setUp(self) -> None:
         super(TestEnvironmentBehaviorWithRefraction, self).setUp()
         self.default_speed = 10
-        self.snell_speed = 8
+        self.snell_speed = 5  # critical angle: pi/6
         self.create_env()
         self.env.step(0)
+
+    """
+    Put the ball at the boundary of the snell layer and test that it refracts at the expected angle.
+        case1: leaving snell to the right at positive angle
+        case2: leaving snell to the right at negative angle
+        case3: leaving snell to the left at positive angle
+        case4: leaving snell to the left at negative angle
+        case5: entering snell to the left at positive angle
+        case6: entering snell to the left at negative angle
+        case7: entering snell to the right at positive angle
+        case8: entering snell to the right at negative angle
+    """
+    def test_ball_leaving_snell_at_pi_12_refracts_to_0p544(self):
+        self.env.env.ball.angle = math.pi / 12
+        self.env.env.ball.x_pos = self.env.env.snell.right_bound - self.env.default_speed / 10
+
+        self.env.step(0)
+        expected = 0.5440881066820845409005476898921853360337137155538743
+        self.assertAlmostEqual(expected, self.env.env.ball.angle)
+
+    def test_ball_leaving_snell_at_neg_pi_12_refracts_to_neg_0p544(self):
+        self.env.env.ball.angle = -math.pi / 12
+        self.env.env.ball.x_pos = self.env.env.snell.right_bound - self.env.default_speed / 10
+
+        self.env.step(0)
+        expected = 2 * math.pi - 0.5440881066820845409005476898921853360337137155538743
+        self.assertAlmostEqual(expected, self.env.env.ball.angle)
+
+    def test_ball_leaving_snell_at_pi_minus_pi_12_refracts_to_pi_minus_0p544(self):
+        self.env.env.ball.angle = math.pi - math.pi / 12
+        self.env.env.ball.x_pos = self.env.env.snell.left_bound + self.env.default_speed / 10
+
+        self.env.step(0)
+        expected = math.pi - 0.5440881066820845409005476898921853360337137155538743
+        self.assertAlmostEqual(expected, self.env.env.ball.angle)
+
+    def test_ball_leaving_snell_at_pi_plus_pi_12_refracts_to_pi_plus_0p544(self):
+        self.env.env.ball.angle = math.pi + math.pi / 12
+        self.env.env.ball.x_pos = self.env.env.snell.left_bound + self.env.default_speed / 10
+
+        self.env.step(0)
+        expected = math.pi + 0.5440881066820845409005476898921853360337137155538743
+        self.assertAlmostEqual(expected, self.env.env.ball.angle)
+
+    def test_ball_entering_snell_at_pi_4_refracts_to_0p361(self):
+        self.env.env.ball.angle = math.pi / 4
+        self.env.env.ball.x_pos = self.env.env.snell.left_bound - self.env.default_speed / 10
+
+        self.env.step(0)
+        expected = 0.3613671239067078055891886763206666810126092432122201
+        self.assertAlmostEqual(expected, self.env.env.ball.angle)
+
+    def test_ball_entering_snell_at_neg_pi_4_refracts_to_neg_0p361(self):
+        self.env.env.ball.angle = -math.pi / 4
+        self.env.env.ball.x_pos = self.env.env.snell.left_bound - self.env.default_speed / 10
+
+        self.env.step(0)
+        expected = 2 * math.pi - 0.3613671239067078055891886763206666810126092432122201
+        self.assertAlmostEqual(expected, self.env.env.ball.angle)
+
+    def test_ball_entering_snell_at_pi_minus_pi_4_refracts_to_pi_minus_0p361(self):
+        self.env.env.ball.angle = math.pi - math.pi / 4
+        self.env.env.ball.x_pos = self.env.env.snell.right_bound + self.env.default_speed / 10
+
+        self.env.step(0)
+        expected = math.pi - 0.3613671239067078055891886763206666810126092432122201
+        self.assertAlmostEqual(expected, self.env.env.ball.angle)
+
+    def test_ball_entering_snell_at_pi_plus_pi_4_refracts_to_pi_plus_0p361(self):
+        self.env.env.ball.angle = math.pi + math.pi / 4
+        self.env.env.ball.x_pos = self.env.env.snell.right_bound + self.env.default_speed / 10
+
+        self.env.step(0)
+        expected = math.pi + 0.3613671239067078055891886763206666810126092432122201
+        self.assertAlmostEqual(expected, self.env.env.ball.angle)
 
 
 class TestEnvironmentResponse(unittest.TestCase):

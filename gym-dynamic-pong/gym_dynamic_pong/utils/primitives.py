@@ -124,7 +124,7 @@ class Line:
 
     def get_intersection(self, other) -> Union[Point, None]:
         """
-        Return the intersection point of two line segments if they intersect, None if they done
+        Return the intersection point of two line segments if they intersect, None if they don't
 
         :param other: A Line object
         :return: a `Point` or `None`
@@ -147,7 +147,7 @@ class Line:
 
         return self.start + u * s_i
 
-    def _in_segment(self, point: Point) -> bool:
+    def in_segment(self, point: Point) -> bool:
         """
         Determine if collinear point `other` is in segment self.
 
@@ -172,7 +172,7 @@ class Line:
         :param point1: (x1, y1)
         :param point2: (x2, y2)
         """
-        if self.start.l1_distance(point1) > self.start.l1_distance(point2):
+        if self.start.l1_distance(point1) < self.start.l1_distance(point2):
             return True
         else:
             return False
@@ -191,6 +191,18 @@ class Line:
         v = self.end - self.start
         return v * (1 / v.l2_norm)
 
+    def __sub__(self, other):
+        if isinstance(other, Point):
+            return Line(self.start - other, self.end - other)
+        else:
+            raise TypeError(f"No operation `sub` defined for type {type(self)} and {type(other)}")
+
+    def __add__(self, other):
+        if isinstance(other, Point):
+            return Line(self.start + other, self.end + other)
+        else:
+            raise TypeError(f"No operation `add` defined for type {type(self)} and {type(other)}")
+
     def __len__(self):
         return self.start.l2_distance(self.end)
 
@@ -199,6 +211,56 @@ class Line:
 
     def __iter__(self):
         return (p for p in (self.start, self.end))
+
+
+class Circle:
+    def __init__(self, center: Point, radius: float, max_width=210, max_height=160):
+        self.center = center
+        self.radius = radius
+        self.max_width = max_width
+        self.max_height = max_height
+
+    def get_intersection(self, line: Line) -> Union[Point, None]:
+        """
+        Return the first intersection point of the line segment and the circle if they intersect, None if they don't
+
+        :param line: a `primitives.Line` object
+        :return: The intersection point or None
+        """
+        # shift the coordinate system to the center of the circle
+        line -= self.center
+        d = line.end - line.start
+        dr = d.dot(d)
+
+        det = line.start.perp(line.end)
+
+        discriminant = self.radius ** 2 * dr - det ** 2
+        if discriminant <= 0:  # line misses (interpret tangent as a miss)
+            return None
+        else:
+            discriminant = math.sqrt(discriminant)
+
+            t1_x = (det * d.y + math.copysign(1., d.y) * d.x * discriminant) / dr
+            t1_y = (-det * d.x + abs(d.y) * discriminant) / dr
+            t1 = Point(t1_x, t1_y)
+
+            t2_x = (det * d.y - math.copysign(1., d.y) * d.x * discriminant) / dr
+            t2_y = (-det * d.x - abs(d.y) * discriminant) / dr
+            t2 = Point(t2_x, t2_y)
+
+            t1_in_segment = line.in_segment(t1)
+            t2_in_segment = line.in_segment(t2)
+            if t1_in_segment and t2_in_segment:
+                if line.point1_before_point2(t1, t2):
+                    return t1 + self.center
+                else:
+                    return t2 + self.center
+            elif t1_in_segment:
+                return t1
+            elif t2_in_segment:
+                return t2
+            else:
+                return None
 
 
 class Rectangle:

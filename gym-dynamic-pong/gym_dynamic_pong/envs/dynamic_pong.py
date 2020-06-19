@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from gym import spaces
 
-from utils.misc import bool_array_to_rgb
-from utils.sprites import Paddle, Ball, Snell, Canvas
+from gym_dynamic_pong.utils.misc import bool_array_to_rgb
+from gym_dynamic_pong.utils.sprites import Paddle, Ball, Snell, Canvas
 
 
 class DynamicPongEnv(gym.Env):
