@@ -3,7 +3,7 @@ import random
 from typing import Dict, Union, Tuple, Any
 
 import numpy as np
-from utils import Rectangle, Line, Point
+from . import Rectangle, Line, Point
 
 EPSILON = 1e-7
 
