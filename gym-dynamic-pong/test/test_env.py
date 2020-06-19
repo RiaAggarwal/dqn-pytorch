@@ -232,9 +232,73 @@ class TestEnvironmentBehaviorWithRefraction(TestEnvironmentBehavior):
     def setUp(self) -> None:
         super(TestEnvironmentBehaviorWithRefraction, self).setUp()
         self.default_speed = 10
-        self.snell_speed = 8
+        self.snell_speed = 5  # critical angle: pi/6
         self.create_env()
         self.env.step(0)
+
+    def test_ball_leaving_snell_at_pi_12_refracts_to_0p544(self):
+        self.env.env.ball.angle = math.pi / 12
+        self.env.env.ball.x_pos = self.env.env.snell.right_bound - self.env.default_speed / 10
+
+        self.env.step(0)
+        expected = 0.5440881066820845409005476898921853360337137155538743
+        self.assertAlmostEqual(expected, self.env.env.ball.angle)
+
+    def test_ball_leaving_snell_at_neg_pi_12_refracts_to_neg_0p544(self):
+        self.env.env.ball.angle = -math.pi / 12
+        self.env.env.ball.x_pos = self.env.env.snell.right_bound - self.env.default_speed / 10
+
+        self.env.step(0)
+        expected = 2 * math.pi - 0.5440881066820845409005476898921853360337137155538743
+        self.assertAlmostEqual(expected, self.env.env.ball.angle)
+
+    def test_ball_leaving_snell_at_pi_minus_pi_12_refracts_to_pi_minus_0p544(self):
+        self.env.env.ball.angle = math.pi - math.pi / 12
+        self.env.env.ball.x_pos = self.env.env.snell.left_bound + self.env.default_speed / 10
+
+        self.env.step(0)
+        expected = math.pi - 0.5440881066820845409005476898921853360337137155538743
+        self.assertAlmostEqual(expected, self.env.env.ball.angle)
+
+    def test_ball_leaving_snell_at_pi_plus_pi_12_refracts_to_pi_plus_0p544(self):
+        self.env.env.ball.angle = math.pi + math.pi / 12
+        self.env.env.ball.x_pos = self.env.env.snell.left_bound + self.env.default_speed / 10
+
+        self.env.step(0)
+        expected = math.pi + 0.5440881066820845409005476898921853360337137155538743
+        self.assertAlmostEqual(expected, self.env.env.ball.angle)
+
+    def test_ball_entering_snell_at_pi_12_refracts_to_0p544(self):
+        self.env.env.ball.angle = math.pi / 12
+        self.env.env.ball.x_pos = self.env.env.snell.right_bound - self.env.default_speed / 10
+
+        self.env.step(0)
+        expected = 0.5440881066820845409005476898921853360337137155538743
+        self.assertAlmostEqual(expected, self.env.env.ball.angle)
+
+    def test_ball_leaving_snell_at_neg_pi_12_refracts_to_neg_0p544(self):
+        self.env.env.ball.angle = -math.pi / 12
+        self.env.env.ball.x_pos = self.env.env.snell.right_bound - self.env.default_speed / 10
+
+        self.env.step(0)
+        expected = 2 * math.pi - 0.5440881066820845409005476898921853360337137155538743
+        self.assertAlmostEqual(expected, self.env.env.ball.angle)
+
+    def test_ball_leaving_snell_at_pi_minus_pi_12_refracts_to_pi_minus_0p544(self):
+        self.env.env.ball.angle = math.pi - math.pi / 12
+        self.env.env.ball.x_pos = self.env.env.snell.left_bound + self.env.default_speed / 10
+
+        self.env.step(0)
+        expected = math.pi - 0.5440881066820845409005476898921853360337137155538743
+        self.assertAlmostEqual(expected, self.env.env.ball.angle)
+
+    def test_ball_leaving_snell_at_pi_plus_pi_12_refracts_to_pi_plus_0p544(self):
+        self.env.env.ball.angle = math.pi + math.pi / 12
+        self.env.env.ball.x_pos = self.env.env.snell.left_bound + self.env.default_speed / 10
+
+        self.env.step(0)
+        expected = math.pi + 0.5440881066820845409005476898921853360337137155538743
+        self.assertAlmostEqual(expected, self.env.env.ball.angle)
 
 
 class TestEnvironmentResponse(unittest.TestCase):
