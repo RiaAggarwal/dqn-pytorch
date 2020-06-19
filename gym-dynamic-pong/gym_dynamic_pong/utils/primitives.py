@@ -191,6 +191,18 @@ class Line:
         v = self.end - self.start
         return v * (1 / v.l2_norm)
 
+    def __sub__(self, other):
+        if isinstance(other, Point):
+            return Line(self.start - other, self.end - other)
+        else:
+            raise TypeError(f"No operation `sub` defined for type {type(self)} and {type(other)}")
+
+    def __add__(self, other):
+        if isinstance(other, Point):
+            return Line(self.start + other, self.end + other)
+        else:
+            raise TypeError(f"No operation `add` defined for type {type(self)} and {type(other)}")
+
     def __len__(self):
         return self.start.l2_distance(self.end)
 
@@ -215,6 +227,8 @@ class Circle:
         :param line:
         :return:
         """
+        # shift the coordinate system to the center of the circle
+        line -= self.center
         d = line.end - line.start
         dr = d.dot(d)
 
@@ -233,19 +247,19 @@ class Circle:
 
             t1_x = (a + b) / dr
             t1_y = (c + d) / dr
-            t1 = Point(t1_x, t1_y) + self.center
+            t1 = Point(t1_x, t1_y)
 
             t2_x = (a - b) / dr
             t2_y = (c - d) / dr
-            t2 = Point(t2_x, t2_y) + self.center
+            t2 = Point(t2_x, t2_y)
 
             t1_in_segment = line.in_segment(t1)
             t2_in_segment = line.in_segment(t2)
             if t1_in_segment and t2_in_segment:
                 if line.point1_before_point2(t1, t2):
-                    return t1
+                    return t1 + self.center
                 else:
-                    return t2
+                    return t2 + self.center
             elif t1_in_segment:
                 return t1
             elif t2_in_segment:
