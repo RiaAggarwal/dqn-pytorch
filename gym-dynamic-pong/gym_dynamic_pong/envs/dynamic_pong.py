@@ -185,8 +185,7 @@ class DynamicPongEnv(gym.Env):
         Create a ball object
         """
         ball = Ball()
-        ball.x_pos = self.width / 2
-        ball.y_pos = self.height / 2
+        ball.pos = (self.width / 2, self.height / 2)
         return ball
 
     def _init_score(self):
