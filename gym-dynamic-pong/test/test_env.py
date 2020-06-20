@@ -48,7 +48,6 @@ class TestEnvironmentBehavior(unittest.TestCase):
         self.our_paddle_height = 45
         self.their_paddle_probability = 0.2
         self.create_env()
-        self.env.step(0)
 
     def create_env(self):
         pong_env = DynamicPongEnv(max_score=2, width=self.width,
@@ -61,6 +60,7 @@ class TestEnvironmentBehavior(unittest.TestCase):
                                   their_paddle_height=self.their_paddle_height,
                                   their_update_probability=self.their_paddle_probability)
         self.env = pong_env
+        self.env.step(0)
 
     def test_their_score_starts_at_zero(self):
         self.assertEqual(0, self.env.env.their_score)
@@ -234,7 +234,6 @@ class TestEnvironmentBehaviorWithRefraction(TestEnvironmentBehavior):
         self.default_speed = 10
         self.snell_speed = 5  # critical angle: pi/6
         self.create_env()
-        self.env.step(0)
 
     """
     Put the ball at the boundary of the snell layer and test that it refracts at the expected angle.
