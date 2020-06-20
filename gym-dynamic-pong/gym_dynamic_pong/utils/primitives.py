@@ -78,8 +78,10 @@ class Point:
         return Point(x, y)
 
     def __eq__(self, other):
-        assert isinstance(other, type(self)), f"cannot compare type {type(other)} to type {type(self)}"
-        return self.x == other.x and self.y == other.y
+        if isinstance(other, type(self)):
+            return self.x == other.x and self.y == other.y
+        else:
+            raise TypeError(f"No equality comparison for type Point and {type(other)}")
 
     def __repr__(self):
         return f"Point({self.x}, {self.y})"
@@ -216,6 +218,12 @@ class Line:
             return Line(self.start + other, self.end + other)
         else:
             raise TypeError(f"No operation `add` defined for type {type(self)} and {type(other)}")
+
+    def __eq__(self, other):
+        if isinstance(other, Line):
+            return self.start == other.start and self.end == other.end
+        else:
+            raise TypeError(f"No equality comparison for type Line and {type(other)}")
 
     def __len__(self):
         return self.start.l2_distance(self.end)
@@ -368,7 +376,7 @@ class Rectangle(Shape):
         Get the first point of intersection between the line and the object
 
         :param line: `primitives.Line` object
-        :return: The point and edge of intersection as a tuple or `None`
+        :return: The edge and point of intersection as a tuple or `None`
         """
         result = None
         for e in self._get_edges():
@@ -404,17 +412,29 @@ class Rectangle(Shape):
     def pos(self, value: Union[Tuple[Union[int, float], Union[int, float]], Point]):
         self.x, self.y = tuple(value)
 
+    @property
+    def top_edge(self):
+        return Line((self.left_bound, self.top_bound), (self.right_bound, self.top_bound))
+
+    @property
+    def right_edge(self):
+        return Line((self.right_bound, self.top_bound), (self.right_bound, self.bot_bound))
+
+    @property
+    def bot_edge(self):
+        return Line((self.right_bound, self.bot_bound), (self.left_bound, self.bot_bound))
+
+    @property
+    def left_edge(self):
+        return Line((self.left_bound, self.bot_bound), (self.left_bound, self.top_bound))
+
     def _get_edges(self) -> Tuple[Line, Line, Line, Line]:
         """
         Edges are assigned in a clockwise fashion so that the interior of the rectangle is to the right of the ray.
 
         :return:
         """
-        lb = self.left_bound, self.bot_bound
-        lt = self.left_bound, self.top_bound
-        rb = self.right_bound, self.bot_bound
-        rt = self.right_bound, self.top_bound
-        return Line(lb, lt), Line(lt, rt),  Line(rt, rb), Line(rb, lb)
+        return self.left_edge, self.top_edge, self.right_edge, self.bot_edge
 
     def is_overlapping(self, other) -> bool:
         """

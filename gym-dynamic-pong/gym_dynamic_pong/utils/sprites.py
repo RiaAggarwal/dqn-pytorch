@@ -31,14 +31,14 @@ class Paddle(Rectangle):
     def down(self):
         self.y -= self.speed
 
-    def _get_edges(self) -> Dict[str, Line]:
+    def _get_edges(self) -> Tuple[Line]:
         """
         Only return the field-side edge
         """
         if self.side == 'right':
-            return {'left': Line((self.left_bound, self.bot_bound), (self.left_bound, self.top_bound))}
+            return Line((self.left_bound, self.bot_bound), (self.left_bound, self.top_bound)),
         elif self.side == 'left':
-            return {'right': Line((self.right_bound, self.bot_bound), (self.right_bound, self.top_bound))}
+            return Line((self.right_bound, self.bot_bound), (self.right_bound, self.top_bound)),
 
     def get_fraction_of_paddle(self, point: Point):
         """
@@ -112,6 +112,7 @@ class Canvas(Rectangle):
                  width: int, their_update_probability: float, **kwargs):
 
         super().__init__(height=height, width=width, **kwargs)
+        self.pos = self.width / 2, self.height / 2
 
         assert isinstance(their_update_probability, (float, int)),\
             f"their_update_probability must be numeric, not {type(their_update_probability)}"
@@ -122,15 +123,9 @@ class Canvas(Rectangle):
 
         # Initialize objects
         self.snell = snell
-        self.snell.pos = (self.width / 2, self.height / 2)
-
         self.ball = ball
-        self.ball.pos = (self.width / 2, self.height / 2)
-
         self.paddle_l = paddle_l
-        self.paddle_l.pos = (self.left_bound + self.paddle_l.width / 2, self.height / 2)
         self.paddle_r = paddle_r
-        self.paddle_l.pos = (self.right_bound - self.paddle_l.width / 2, self.height / 2)
 
         self.we_scored = False
         self.they_scored = False
@@ -327,20 +322,22 @@ class Canvas(Rectangle):
         :return: The new angle in global coordinates
         """
         # TODO: verify this works with a non-vertical interface
-        if 0 <= boundary.angle < math.pi / 2:  # in the first quadrant
-            boundary_angle = boundary.angle
+
+        boundary_angle = boundary.angle % (2 * math.pi)
+        if 0 <= boundary_angle < math.pi / 2:  # in the first quadrant
+            boundary_angle = boundary_angle
             new_angle = boundary_angle - math.pi / 2 + new_angle
-        elif math.pi / 2 <= boundary.angle < math.pi:  # in the second quadrant
-            boundary_angle = math.pi - boundary.angle
+        elif math.pi / 2 <= boundary_angle < math.pi:  # in the second quadrant
+            boundary_angle = math.pi - boundary_angle
             new_angle = math.pi / 2 - boundary_angle + new_angle
-        elif math.pi <= boundary.angle < 3 * math.pi / 2:  # in the third quadrant
-            boundary_angle = math.pi - boundary.angle
+        elif math.pi <= boundary_angle < 3 * math.pi / 2:  # in the third quadrant
+            boundary_angle = math.pi - boundary_angle
             new_angle = boundary_angle - math.pi / 2 + new_angle
-        elif 2 * math.pi / 3 <= boundary.angle < 2 * math.pi:  # in the fourth quadrant
-            boundary_angle = 2 * math.pi - boundary.angle
+        elif 2 * math.pi / 3 <= boundary_angle < 2 * math.pi:  # in the fourth quadrant
+            boundary_angle = 2 * math.pi - boundary_angle
             new_angle = math.pi / 2 - boundary_angle - new_angle
         else:
-            raise ValueError(f'Unexpected angle {boundary.angle}')
+            raise ValueError(f'Unexpected angle {boundary_angle}')
         return boundary_angle, new_angle
 
     def _get_start_and_end_speed(self, snell: Snell, trajectory: Line) -> Tuple[float, float]:
@@ -361,11 +358,11 @@ class Canvas(Rectangle):
 
     def _interact_border(self, point: Point, edge: Line, trajectory: Line) -> float:
         reward = 0.
-        if edge == self.top_bound or edge == self.bot_bound:
+        if edge == self.top_edge or edge == self.bot_edge:
             self._reflect(Point(1, -1), point, trajectory)
-        elif edge == self.left_bound:
+        elif edge == self.left_edge:
             reward = self.score('we')
-        elif edge == self.right_bound:
+        elif edge == self.right_edge:
             reward = self.score('they')
         else:
             raise ValueError(f'invalid edge, {edge}')
@@ -399,8 +396,9 @@ class Canvas(Rectangle):
         result = None
 
         for o in self.get_objects():
-            intersection, edge = o.get_intersection(trajectory)
-            if intersection is not None:
+            intersection_result = o.get_intersection(trajectory)
+            if intersection_result is not None:
+                edge, intersection = intersection_result
                 if result is None:
                     result = o, intersection, edge
                 elif trajectory.point1_before_point2(intersection, result[1]):

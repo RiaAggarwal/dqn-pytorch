@@ -150,12 +150,17 @@ class DynamicPongEnv(gym.Env):
             self._init_paddle('left', self.their_paddle_height, self.their_paddle_speed),
             self._init_paddle('right', self.our_paddle_height, self.our_paddle_speed),
             self._init_ball(),
-            Snell(0.25 * self.width, self.height, self.snell_speed),
+            self._init_snell(),
             self.default_speed,
             self.height,
             self.width,
             self.their_update_probability,
         )
+
+    def _init_snell(self):
+        snell = Snell(0.25 * self.width, self.height, self.snell_speed)
+        snell.pos = self.width / 2, self.height / 2
+        return snell
 
     def _init_paddle(self, which_side: str, height, speed) -> Paddle:
         """
@@ -166,8 +171,13 @@ class DynamicPongEnv(gym.Env):
         :param speed: the number of units the paddle can move in a single frame
         :param height: the height of the paddle
         """
+        assert which_side in ['left', 'right'], f"side must be 'left' or 'right', not {which_side}"
         paddle = Paddle(height, int(0.02 * self.width) + 1, speed, which_side)
         paddle.y = self.height / 2
+        if which_side == 'left':
+            paddle.x = paddle.width / 2
+        if which_side == 'right':
+            paddle.x = self.width - paddle.width / 2
         return paddle
 
     def _init_ball(self) -> Ball:
@@ -175,8 +185,8 @@ class DynamicPongEnv(gym.Env):
         Create a ball object
         """
         ball = Ball()
-        ball.x_pos = self.width // 2
-        ball.y_pos = self.height // 2
+        ball.x_pos = self.width / 2
+        ball.y_pos = self.height / 2
         return ball
 
     def _init_score(self):
