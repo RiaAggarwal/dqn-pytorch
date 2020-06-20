@@ -1,8 +1,9 @@
 import math
 import random
-from typing import Dict, Union, Tuple, Any
+from typing import Union, Tuple, List
 
 import numpy as np
+
 from . import Rectangle, Line, Point, Shape
 
 EPSILON = 1e-7
@@ -227,11 +228,11 @@ class Canvas(Rectangle):
         if result is None:  # No intersection
             self.ball.pos = new_pos
         else:
-            reward = self._interaction_dispatcher(*result, trajectory)
+            reward = self._interaction_dispatcher(result, trajectory)
 
         return reward
 
-    def _interaction_dispatcher(self, obj: Union[Paddle, Snell], point: Point, edge: Line, trajectory: Line):
+    def _interaction_dispatcher(self, interaction_result: List, trajectory: Line):
         """
         Dispatch data to the appropriate method based on the interaction `obj`.
 
@@ -240,12 +241,20 @@ class Canvas(Rectangle):
         :param point: the point of interaction
         """
         reward = 0
-        if obj is self:  # border interaction
-            reward = self._interact_border(point, edge, trajectory)
-        elif isinstance(obj, Paddle):  # paddle interaction
-            self._interact_paddle(obj, point, trajectory)
-        elif isinstance(obj, Snell):
-            self._refract(obj, point, edge, trajectory)
+        if len(interaction_result) == 1:
+            obj, point, edge = interaction_result.pop()
+            assert isinstance(obj, Shape), f"type Shape expected, not {type(obj)}"
+            assert isinstance(point, Point), f"type Point expected, not {type(point)}"
+            assert isinstance(edge, Line), f"type Line expected, not {type(edge)}"
+
+            if obj is self:  # border interaction
+                reward = self._interact_border(point, edge, trajectory)
+            elif isinstance(obj, Paddle):  # paddle interaction
+                self._interact_paddle(obj, point, trajectory)
+            elif isinstance(obj, Snell):
+                self._refract(obj, point, edge, trajectory)
+        else:
+            raise NotImplementedError("Shared boundary not yet implemented")
 
         return reward
 
@@ -386,7 +395,7 @@ class Canvas(Rectangle):
         remaining_speed = point.l2_distance(trajectory.end)
         return self._step_ball(remaining_speed)
 
-    def _get_first_intersection(self, trajectory: Line) -> Union[Tuple[Shape, Point, Line], None]:
+    def _get_first_intersection(self, trajectory: Line) -> Union[List[Tuple[Shape, Point, Line]], None]:
         """
         Find the first point at which the trajectory interacted with an object.
 
@@ -400,9 +409,11 @@ class Canvas(Rectangle):
             if intersection_result is not None:
                 edge, intersection = intersection_result
                 if result is None:
-                    result = o, intersection, edge
-                elif trajectory.point1_before_point2(intersection, result[1]):
-                    result = o, intersection, edge
+                    result = [(o, intersection, edge)]
+                elif intersection == result[0][1]:  # we have a shared boundary
+                    result = result.append((o, intersection, edge))
+                elif trajectory.point1_before_point2(intersection, result[0][1]):
+                    result = [(o, intersection, edge)]
         return result
 
     def _get_ball_speed(self) -> float:
