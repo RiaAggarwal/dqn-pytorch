@@ -16,7 +16,7 @@ class TestVideoOutputManually(unittest.TestCase):
 
     def test_step_executes_down_manually(self):
         for i in range(50):
-            self.env.step(1)
+            self.env.step(2)
             self.env.render()
 
     def test_big_right_paddle(self):
@@ -48,7 +48,6 @@ class TestEnvironmentBehavior(unittest.TestCase):
         self.our_paddle_height = 45
         self.their_paddle_probability = 0.2
         self.create_env()
-        self.env.step(0)
 
     def create_env(self):
         pong_env = DynamicPongEnv(max_score=2, width=self.width,
@@ -61,6 +60,7 @@ class TestEnvironmentBehavior(unittest.TestCase):
                                   their_paddle_height=self.their_paddle_height,
                                   their_update_probability=self.their_paddle_probability)
         self.env = pong_env
+        self.env.step(0)
 
     def test_their_score_starts_at_zero(self):
         self.assertEqual(0, self.env.env.their_score)
@@ -69,15 +69,15 @@ class TestEnvironmentBehavior(unittest.TestCase):
         self.assertEqual(0, self.env.env.our_score)
 
     def test_their_score_increases(self):
-        self.env.env.ball.x_pos = self.width - self.default_speed + 1
-        self.env.env.ball.y_pos = self.height - 2 * self.default_speed
+        self.env.env.ball.x = self.width - self.default_speed + 1
+        self.env.env.ball.y = self.height - 2 * self.default_speed
         self.env.env.ball.angle = 0
         self.env.step(0)
         self.assertEqual(1, self.env.env.their_score)
 
     def test_our_score_increases(self):
-        self.env.env.ball.x_pos = self.default_speed - 1
-        self.env.env.ball.y_pos = self.height - 2 * self.default_speed
+        self.env.env.ball.x = self.default_speed - 1
+        self.env.env.ball.y = self.height - 2 * self.default_speed
         self.env.env.ball.angle = math.pi
         self.env.step(0)
         self.assertEqual(1, self.env.env.our_score)
@@ -92,12 +92,12 @@ class TestEnvironmentBehavior(unittest.TestCase):
 
     def plausible_ball_motion_tester(self):
         self.env.step(0)
-        x_prev = self.env.env.ball.x_pos
-        y_prev = self.env.env.ball.y_pos
+        x_prev = self.env.env.ball.x
+        y_prev = self.env.env.ball.y
         for i in range(1000):
             self.env.step(0)
-            x_pos = self.env.env.ball.x_pos
-            y_pos = self.env.env.ball.y_pos
+            x_pos = self.env.env.ball.x
+            y_pos = self.env.env.ball.y
 
             # ball is too far away from any edge to interact with one and the ball is not at the default start
             if self.default_speed * 4 < x_pos < self.width - self.default_speed * 4 and \
@@ -127,15 +127,15 @@ class TestEnvironmentBehavior(unittest.TestCase):
         angle = math.pi / 4
         speed = self.get_ball_speed()
         y_pos = self.height - speed * math.sin(angle)
-        x_pos = self.env.env.ball.x_pos
+        x_pos = self.env.env.ball.x
 
-        self.env.env.ball.y_pos = y_pos
+        self.env.env.ball.y = y_pos
         self.env.env.ball.angle = angle
 
         self.env.step(0)
         self.env.step(0)
-        self.assertAlmostEqual(y_pos, self.env.env.ball.y_pos, 2)
-        self.assertGreater(self.env.env.ball.x_pos, x_pos)
+        self.assertAlmostEqual(y_pos, self.env.env.ball.y, 2)
+        self.assertGreater(self.env.env.ball.x, x_pos)
 
     def get_ball_speed(self):
         return self.snell_speed if self.env.env.snell.is_in(self.env.env.ball.pos) else self.default_speed
@@ -144,65 +144,65 @@ class TestEnvironmentBehavior(unittest.TestCase):
         angle = math.pi * 3 / 4
         speed = self.get_ball_speed()
         y_pos = self.height - speed * math.sin(angle) / 2
-        x_pos = self.env.env.ball.x_pos
+        x_pos = self.env.env.ball.x
 
-        self.env.env.ball.y_pos = y_pos
+        self.env.env.ball.y = y_pos
         self.env.env.ball.angle = angle
 
         self.env.step(0)
-        self.assertAlmostEqual(y_pos, self.env.env.ball.y_pos, 2)
+        self.assertAlmostEqual(y_pos, self.env.env.ball.y, 2)
 
     def test_ball_bounced_off_bottom_moving_left_over_one_step(self):
         angle = math.pi * 5 / 4
         speed = self.get_ball_speed()
         y_pos = abs(speed * math.sin(angle) / 2)
-        x_pos = self.env.env.ball.x_pos
+        x_pos = self.env.env.ball.x
 
-        self.env.env.ball.y_pos = y_pos
+        self.env.env.ball.y = y_pos
         self.env.env.ball.angle = angle
 
         self.env.step(0)
-        self.assertAlmostEqual(y_pos, self.env.env.ball.y_pos, 5)
-        self.assertLess(self.env.env.ball.x_pos, x_pos)
+        self.assertAlmostEqual(y_pos, self.env.env.ball.y, 5)
+        self.assertLess(self.env.env.ball.x, x_pos)
 
     def test_ball_bounced_off_bottom_moving_right_over_one_step(self):
         angle = math.pi * 7 / 4
         speed = self.get_ball_speed()
         y_pos = abs(speed * math.sin(angle) / 2)
-        x_pos = self.env.env.ball.x_pos
+        x_pos = self.env.env.ball.x
 
-        self.env.env.ball.y_pos = y_pos
+        self.env.env.ball.y = y_pos
         self.env.env.ball.angle = angle
 
         self.env.step(0)
-        self.assertAlmostEqual(y_pos, self.env.env.ball.y_pos, 5)
-        self.assertGreater(self.env.env.ball.x_pos, x_pos)
+        self.assertAlmostEqual(y_pos, self.env.env.ball.y, 5)
+        self.assertGreater(self.env.env.ball.x, x_pos)
 
     def test_ball_bounced_off_right_paddle(self):
         angle = 0
-        y_pos = self.env.env.paddle_r.y_pos
+        y_pos = self.env.env.paddle_r.y
         x_pos = self.width - self.default_speed / 2 - self.env.env.paddle_r.left_bound
 
-        self.env.env.ball.y_pos = y_pos
-        self.env.env.ball.x_pos = x_pos
+        self.env.env.ball.y = y_pos
+        self.env.env.ball.x = x_pos
         self.env.env.ball.angle = angle
 
         self.env.step(0)
-        self.assertAlmostEqual(y_pos, self.env.env.ball.y_pos, 0)
-        self.assertAlmostEqual(x_pos, self.env.env.ball.x_pos, 1)
+        self.assertAlmostEqual(y_pos, self.env.env.ball.y, 0)
+        self.assertAlmostEqual(x_pos, self.env.env.ball.x, 1)
 
     def test_ball_bounced_off_left_paddle(self):
         angle = math.pi
         y_pos = self.height / 2
         x_pos = self.env.env.paddle_l.right_bound + self.env.default_speed / 2
 
-        self.env.env.ball.y_pos = y_pos
-        self.env.env.ball.x_pos = x_pos
+        self.env.env.ball.y = y_pos
+        self.env.env.ball.x = x_pos
         self.env.env.ball.angle = angle
 
         self.env.step(0)
-        self.assertAlmostEqual(y_pos, self.env.env.ball.y_pos, 0)
-        self.assertAlmostEqual(x_pos, self.env.env.ball.x_pos, 1)
+        self.assertAlmostEqual(y_pos, self.env.env.ball.y, 0)
+        self.assertAlmostEqual(x_pos, self.env.env.ball.x, 1)
 
     def test_perfect_opponent_never_is_scored_on(self):
         self.their_update_probability = 1.
@@ -234,7 +234,6 @@ class TestEnvironmentBehaviorWithRefraction(TestEnvironmentBehavior):
         self.default_speed = 10
         self.snell_speed = 5  # critical angle: pi/6
         self.create_env()
-        self.env.step(0)
 
     """
     Put the ball at the boundary of the snell layer and test that it refracts at the expected angle.
@@ -249,7 +248,7 @@ class TestEnvironmentBehaviorWithRefraction(TestEnvironmentBehavior):
     """
     def test_ball_leaving_snell_at_pi_12_refracts_to_0p544(self):
         self.env.env.ball.angle = math.pi / 12
-        self.env.env.ball.x_pos = self.env.env.snell.right_bound - self.env.default_speed / 10
+        self.env.env.ball.x = self.env.env.snell.right_bound - self.env.default_speed / 10
 
         self.env.step(0)
         expected = 0.5440881066820845409005476898921853360337137155538743
@@ -257,7 +256,7 @@ class TestEnvironmentBehaviorWithRefraction(TestEnvironmentBehavior):
 
     def test_ball_leaving_snell_at_neg_pi_12_refracts_to_neg_0p544(self):
         self.env.env.ball.angle = -math.pi / 12
-        self.env.env.ball.x_pos = self.env.env.snell.right_bound - self.env.default_speed / 10
+        self.env.env.ball.x = self.env.env.snell.right_bound - self.env.default_speed / 10
 
         self.env.step(0)
         expected = 2 * math.pi - 0.5440881066820845409005476898921853360337137155538743
@@ -265,7 +264,7 @@ class TestEnvironmentBehaviorWithRefraction(TestEnvironmentBehavior):
 
     def test_ball_leaving_snell_at_pi_minus_pi_12_refracts_to_pi_minus_0p544(self):
         self.env.env.ball.angle = math.pi - math.pi / 12
-        self.env.env.ball.x_pos = self.env.env.snell.left_bound + self.env.default_speed / 10
+        self.env.env.ball.x = self.env.env.snell.left_bound + self.env.default_speed / 10
 
         self.env.step(0)
         expected = math.pi - 0.5440881066820845409005476898921853360337137155538743
@@ -273,7 +272,7 @@ class TestEnvironmentBehaviorWithRefraction(TestEnvironmentBehavior):
 
     def test_ball_leaving_snell_at_pi_plus_pi_12_refracts_to_pi_plus_0p544(self):
         self.env.env.ball.angle = math.pi + math.pi / 12
-        self.env.env.ball.x_pos = self.env.env.snell.left_bound + self.env.default_speed / 10
+        self.env.env.ball.x = self.env.env.snell.left_bound + self.env.default_speed / 10
 
         self.env.step(0)
         expected = math.pi + 0.5440881066820845409005476898921853360337137155538743
@@ -281,7 +280,7 @@ class TestEnvironmentBehaviorWithRefraction(TestEnvironmentBehavior):
 
     def test_ball_entering_snell_at_pi_4_refracts_to_0p361(self):
         self.env.env.ball.angle = math.pi / 4
-        self.env.env.ball.x_pos = self.env.env.snell.left_bound - self.env.default_speed / 10
+        self.env.env.ball.x = self.env.env.snell.left_bound - self.env.default_speed / 10
 
         self.env.step(0)
         expected = 0.3613671239067078055891886763206666810126092432122201
@@ -289,7 +288,7 @@ class TestEnvironmentBehaviorWithRefraction(TestEnvironmentBehavior):
 
     def test_ball_entering_snell_at_neg_pi_4_refracts_to_neg_0p361(self):
         self.env.env.ball.angle = -math.pi / 4
-        self.env.env.ball.x_pos = self.env.env.snell.left_bound - self.env.default_speed / 10
+        self.env.env.ball.x = self.env.env.snell.left_bound - self.env.default_speed / 10
 
         self.env.step(0)
         expected = 2 * math.pi - 0.3613671239067078055891886763206666810126092432122201
@@ -297,7 +296,7 @@ class TestEnvironmentBehaviorWithRefraction(TestEnvironmentBehavior):
 
     def test_ball_entering_snell_at_pi_minus_pi_4_refracts_to_pi_minus_0p361(self):
         self.env.env.ball.angle = math.pi - math.pi / 4
-        self.env.env.ball.x_pos = self.env.env.snell.right_bound + self.env.default_speed / 10
+        self.env.env.ball.x = self.env.env.snell.right_bound + self.env.default_speed / 10
 
         self.env.step(0)
         expected = math.pi - 0.3613671239067078055891886763206666810126092432122201
@@ -305,7 +304,7 @@ class TestEnvironmentBehaviorWithRefraction(TestEnvironmentBehavior):
 
     def test_ball_entering_snell_at_pi_plus_pi_4_refracts_to_pi_plus_0p361(self):
         self.env.env.ball.angle = math.pi + math.pi / 4
-        self.env.env.ball.x_pos = self.env.env.snell.right_bound + self.env.default_speed / 10
+        self.env.env.ball.x = self.env.env.snell.right_bound + self.env.default_speed / 10
 
         self.env.step(0)
         expected = math.pi + 0.3613671239067078055891886763206666810126092432122201

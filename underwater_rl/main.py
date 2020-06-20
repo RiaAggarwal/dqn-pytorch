@@ -289,7 +289,7 @@ if __name__ == '__main__':
     # create environment
     # env = gym.make("PongNoFrameskip-v4")
     env = gym.make(
-        "gym_dynamic_pong:dynamic-pong-v0",
+        "gym_dynamic_pong:dynamic-pong-v1",
         max_score=20,
         width=args.width,
         height=args.height,

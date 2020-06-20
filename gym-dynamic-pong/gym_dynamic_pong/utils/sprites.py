@@ -1,56 +1,45 @@
 import math
 import random
-from typing import Dict, Union, Tuple, Any
+from typing import Union, Tuple, List
 
 import numpy as np
-from . import Rectangle, Line, Point
+
+from . import Rectangle, Line, Point, Shape
 
 EPSILON = 1e-7
 
 
 class Paddle(Rectangle):
-    def __init__(self, height, width, speed, side, max_width, max_height):
-        super().__init__(height=height, width=width, max_height=max_height, max_width=max_width)
+    def __init__(self, height: float, width: float, speed: float, side: str, max_angle: float = math.pi / 4):
+        """
+
+        :param height: The paddle height
+        :param width: The paddle width (only matters for rendering)
+        :param side: The side the paddle will be on ('left' or 'right')
+        :param speed: The units the paddle moves in a single turn
+        :param max_angle: The maximum angle at which the paddle can hit the ball
+        """
+        super().__init__(height=height, width=width)
+        assert side in ['left', 'right'], f"side must be 'left' or 'right', not {side}"
+        assert 0 <= max_angle <= math.pi / 2, f"max angle must be between 0 and pi/2, not {max_angle}"
         self.side = side
         self.speed = speed
-
-        self.set_paddle_left_right()
-
-    def set_paddle_left_right(self):
-        if self.side == 'left':
-            self.x_pos = self.width / 2
-        elif self.side == 'right':
-            self.x_pos = self.max_width - self.width / 2
-        else:
-            raise ValueError("`which` must be 'left' or 'right'")
+        self.max_angle = max_angle
 
     def up(self):
-        self.y_pos += self.speed
+        self.y += self.speed
 
     def down(self):
-        self.y_pos -= self.speed
+        self.y -= self.speed
 
-    def get_edges(self) -> Dict[str, Line]:
+    def _get_edges(self) -> Tuple[Line]:
         """
         Only return the field-side edge
         """
         if self.side == 'right':
-            return {'left': Line((self.left_bound, self.bot_bound), (self.left_bound, self.top_bound))}
+            return Line((self.left_bound, self.bot_bound), (self.left_bound, self.top_bound)),
         elif self.side == 'left':
-            return {'right': Line((self.right_bound, self.bot_bound), (self.right_bound, self.top_bound))}
-
-    @property
-    def y_pos(self):
-        return self._y_pos
-
-    @y_pos.setter
-    def y_pos(self, value):
-        if value - self.height / 2 < 0:
-            self._y_pos = self.height / 2
-        elif value + self.height / 2 > self.max_height:
-            self._y_pos = self.max_height - self.height / 2
-        else:
-            self._y_pos = value
+            return Line((self.right_bound, self.bot_bound), (self.right_bound, self.top_bound)),
 
     def get_fraction_of_paddle(self, point: Point):
         """
@@ -60,20 +49,19 @@ class Paddle(Rectangle):
         :param point: the point where the ball hit the paddle
         :return: fraction of the paddle
         """
-        fraction = (point.y - self.y_pos) / self.height
+        fraction = (point.y - self.y) / self.height
         assert -0.5 <= fraction <= 0.5, "The ball was not on the paddle"
         return fraction
 
 
 class Ball(Rectangle):
-    def __init__(self, max_height, max_width):
-        super().__init__(max_height=max_height, max_width=max_width, width=2, height=2)
+    def __init__(self):
+        super().__init__(width=2, height=2)
         self._angle = math.pi - (random.random() - 0.5) * (math.pi / 3)
 
-    def reset(self):
+    def reset(self, position: Union[Tuple[float, float], Point]):
         self._angle = (random.random() - 0.5) * (math.pi / 3)
-        self.x_pos = self.max_width / 2
-        self.y_pos = self.max_height / 2
+        self.pos = position
 
     @property
     def angle(self):
@@ -106,46 +94,36 @@ class Ball(Rectangle):
 
 
 class Snell(Rectangle):
-    def __init__(self, width_fraction, max_height, max_width, speed):
+    def __init__(self, width, height, speed):
         """
         area indicating ball speed.
         :return:
         """
-        super().__init__(width=int(width_fraction * max_width), height=max_height, max_width=max_width,
-                         max_height=max_height)
-        self.y_pos = self.max_height / 2
-        self.x_pos = self.max_width / 2
+        super().__init__(width=width, height=height)
         self.speed = speed
 
 
-class Canvas:
+class Canvas(Rectangle):
     action_meanings = {0: 'NOOP',
                        1: 'UP',
                        2: 'DOWN', }
     actions = {k: v for v, k in action_meanings.items()}
 
-    def __init__(self,
-                 paddle_l: Paddle,
-                 paddle_r: Paddle,
-                 ball: Ball,
-                 snell: Snell,
-                 ball_speed: int,
-                 height: int,
-                 width: int,
-                 their_update_probability: float):
+    def __init__(self, paddle_l: Paddle, paddle_r: Paddle, ball: Ball, snell: Snell, ball_speed: int, height: int,
+                 width: int, their_update_probability: float, **kwargs):
+
+        super().__init__(height=height, width=width, **kwargs)
+        self.pos = self.width / 2, self.height / 2
 
         assert isinstance(their_update_probability, (float, int)),\
             f"their_update_probability must be numeric, not {type(their_update_probability)}"
         assert 0 <= their_update_probability <= 1, f"{their_update_probability} outside allowed bounds [0, 1]"
 
         self.their_update_probability = their_update_probability
-
-        self.width = width
-        self.height = height
+        self.default_ball_speed = ball_speed
 
         # Initialize objects
         self.snell = snell
-        self.default_ball_speed = ball_speed
         self.ball = ball
         self.paddle_l = paddle_l
         self.paddle_r = paddle_r
@@ -157,44 +135,31 @@ class Canvas:
         self.our_score = 0
         self.their_score = 0
 
-    def get_edges(self) -> Dict[Any, Dict[str, Line]]:
-        """
-        Gets edges of canvas and all objects as lines
+    @property
+    def left_bound(self):
+        return 0
 
-        :return: ```
-        {'border': {
-                       'left': Line(),
-                       'top': Line(),
-                       'right': Line(),
-                       'bottom': Line(),
-                    },
-         obj1: {
-                   'left': Line(),
-                   'top': Line(),
-                   'right': Line(),
-                   'bottom': Line(),
-                },
-        ...}
-        ```
-        """
-        border = {
-            'left'  : Line((0, 0), (0, self.height)),
-            'top'   : Line((0, self.height), (self.width, self.height)),
-            'right' : Line((self.width, self.height), (self.width, 0)),
-            'bottom': Line((self.width, 0), (0, 0))
-        }
-        edges = {o: o.get_edges() for o in self.get_objects()}
-        edges['border'] = border
-        return edges
+    @property
+    def right_bound(self):
+        return self.width
+
+    @property
+    def top_bound(self):
+        return self.height
+
+    @property
+    def bot_bound(self):
+        return 0
 
     def get_objects(self):
-        return self.snell, self.paddle_r, self.paddle_l
+        return self, self.snell, self.paddle_r, self.paddle_l
 
-    def to_numpy(self):
-        out = np.zeros((self.height, self.width), dtype=np.bool)
+    # noinspection PyMethodOverriding
+    def to_numpy(self) -> np.ndarray:
+        out = np.zeros((round(self.height), round(self.width)), dtype=np.bool)
 
         for sprite in (self.ball, self.paddle_l, self.paddle_r):
-            out |= sprite.to_numpy()
+            out |= sprite.to_numpy(self.height, self.width)
         return out
 
     def score(self, who):
@@ -228,7 +193,7 @@ class Canvas:
         return self.height, self.width
 
     def _reset_ball(self):
-        self.ball.reset()
+        self.ball.reset((self.width / 2, self.height / 2))
 
     def _move_our_paddle(self, action) -> None:
         """
@@ -240,9 +205,11 @@ class Canvas:
             action = action.item()  # pops the item if the action is a single tensor
         assert action in [a for a in self.action_meanings.keys()], f"{action} is not a valid action"
         if action == self.actions['UP']:
-            self.paddle_r.up()
+            if self.paddle_r.top_bound < self.top_bound:
+                self.paddle_r.up()
         elif action == self.actions['DOWN']:
-            self.paddle_r.down()
+            if self.paddle_r.bot_bound > self.bot_bound:
+                self.paddle_r.down()
 
     def _step_ball(self, speed: Union[float, int] = None):
         """
@@ -261,44 +228,49 @@ class Canvas:
         if result is None:  # No intersection
             self.ball.pos = new_pos
         else:
-            reward = self._interaction_dispatcher(*result, trajectory)
+            reward = self._interaction_dispatcher(result, trajectory)
 
         return reward
 
-    def _interaction_dispatcher(self, obj: Union[str, Paddle, Snell], edge: str, point: Point, line: Line,
-                                trajectory: Line):
+    def _interaction_dispatcher(self, interaction_result: List, trajectory: Line):
         """
         Dispatch data to the appropriate method based on the interaction `obj`.
 
-        :param line: the line that the trajectory intersected
         :param trajectory: the trajectory of the ball
-        :param obj: 'border' or an object in the canvas
-        :param edge: 'top', 'bottom', 'left', 'right'
+        :param obj: An object in the canvas
         :param point: the point of interaction
         """
-        assert edge in ['top', 'bottom', 'left', 'right']
         reward = 0
-        if obj == 'border':
-            reward = self._interact_border(edge, point, trajectory)
-        elif obj is self.paddle_l or obj is self.paddle_r:
-            self._interact_paddle(obj, point, trajectory)
-        elif obj is self.snell:
-            self._refract(point, trajectory, line)
+        if len(interaction_result) == 1:
+            obj, point, edge = interaction_result.pop()
+            assert isinstance(obj, Shape), f"type Shape expected, not {type(obj)}"
+            assert isinstance(point, Point), f"type Point expected, not {type(point)}"
+            assert isinstance(edge, Line), f"type Line expected, not {type(edge)}"
+
+            if obj is self:  # border interaction
+                reward = self._interact_border(point, edge, trajectory)
+            elif isinstance(obj, Paddle):  # paddle interaction
+                self._interact_paddle(obj, point, trajectory)
+            elif isinstance(obj, Snell):
+                self._refract(obj, point, edge, trajectory)
+        else:
+            raise NotImplementedError("Shared boundary not yet implemented")
 
         return reward
 
-    def _interact_paddle(self, paddle: Paddle, point: Point, trajectory: Line):
+    def _interact_paddle(self, paddle: Paddle, point: Point, trajectory: Line) -> float:
         paddle_fraction = paddle.get_fraction_of_paddle(point)
-        angle = paddle_fraction * math.pi / 4
+        angle = paddle_fraction * paddle.max_angle
         angle = math.pi - angle if self.ball.unit_velocity.x > 0 else angle
 
         self.ball.angle = angle
-        return self._finish_step_ball(point, trajectory)
+        reward = self._finish_step_ball(point, trajectory)
+        return reward
 
-    def _refract(self, point: Point, trajectory: Line, boundary: Line):
-        s0, s1 = self._get_start_and_end_speed(trajectory)
+    def _refract(self, obj: Snell, point: Point, edge: Line, trajectory: Line):
+        s0, s1 = self._get_start_and_end_speed(obj, trajectory)
 
-        angle = boundary.angle_to_normal(trajectory)
+        angle = edge.angle_to_normal(trajectory)
         if self._exceeds_critical_angle(angle, s0, s1):
             # TODO: reflect to arbitrary angle (non-vertical interface)
             self._reflect(Point(-1, 1), point, trajectory)
@@ -306,7 +278,7 @@ class Canvas:
 
         new_angle = math.asin(s1 / s0 * math.sin(angle))
 
-        boundary_angle, new_angle = self._adjust_refraction_to_boundary_angle(boundary, new_angle)
+        boundary_angle, new_angle = self._adjust_refraction_to_boundary_angle(edge, new_angle)
         new_angle = self._adjust_refraction_to_direction_of_incidence(boundary_angle, new_angle, trajectory)
         self.ball.angle = new_angle
 
@@ -359,45 +331,47 @@ class Canvas:
         :return: The new angle in global coordinates
         """
         # TODO: verify this works with a non-vertical interface
-        if 0 <= boundary.angle < math.pi / 2:  # in the first quadrant
-            boundary_angle = boundary.angle
+
+        boundary_angle = boundary.angle % (2 * math.pi)
+        if 0 <= boundary_angle < math.pi / 2:  # in the first quadrant
+            boundary_angle = boundary_angle
             new_angle = boundary_angle - math.pi / 2 + new_angle
-        elif math.pi / 2 <= boundary.angle < math.pi:  # in the second quadrant
-            boundary_angle = math.pi - boundary.angle
+        elif math.pi / 2 <= boundary_angle < math.pi:  # in the second quadrant
+            boundary_angle = math.pi - boundary_angle
             new_angle = math.pi / 2 - boundary_angle + new_angle
-        elif math.pi <= boundary.angle < 3 * math.pi / 2:  # in the third quadrant
-            boundary_angle = math.pi - boundary.angle
+        elif math.pi <= boundary_angle < 3 * math.pi / 2:  # in the third quadrant
+            boundary_angle = math.pi - boundary_angle
             new_angle = boundary_angle - math.pi / 2 + new_angle
-        elif 2 * math.pi / 3 <= boundary.angle < 2 * math.pi:  # in the fourth quadrant
-            boundary_angle = 2 * math.pi - boundary.angle
+        elif 2 * math.pi / 3 <= boundary_angle < 2 * math.pi:  # in the fourth quadrant
+            boundary_angle = 2 * math.pi - boundary_angle
             new_angle = math.pi / 2 - boundary_angle - new_angle
         else:
-            raise ValueError(f'Unexpected angle {boundary.angle}')
+            raise ValueError(f'Unexpected angle {boundary_angle}')
         return boundary_angle, new_angle
 
-    def _get_start_and_end_speed(self, trajectory: Line) -> Tuple[float, float]:
+    def _get_start_and_end_speed(self, snell: Snell, trajectory: Line) -> Tuple[float, float]:
         """
         Get the speed at the start of the trajectory and the speed at the end of the trajectory.
-        TODO: use the speed of the object whose boundary we are interacting with, not the speed at the end of the traj.
 
         :param trajectory: The trajectory `primitives.Line` object
         :return: (initial speed, final speed)
         """
-        if self.snell.is_in(trajectory.start):
-            s0 = self.snell.speed
+        # todo: detect if start is in some other snell layer
+        if snell.is_in(trajectory.start):
+            s0 = snell.speed
             s1 = self.default_ball_speed
         else:
             s0 = self.default_ball_speed
-            s1 = self.snell.speed
+            s1 = snell.speed
         return s0, s1
 
-    def _interact_border(self, edge: str, point: Point, trajectory: Line):
-        reward = 0
-        if edge in ['top', 'bottom']:
+    def _interact_border(self, point: Point, edge: Line, trajectory: Line) -> float:
+        reward = 0.
+        if edge == self.top_edge or edge == self.bot_edge:
             self._reflect(Point(1, -1), point, trajectory)
-        elif edge == 'left':
+        elif edge == self.left_edge:
             reward = self.score('we')
-        elif edge == 'right':
+        elif edge == self.right_edge:
             reward = self.score('they')
         else:
             raise ValueError(f'invalid edge, {edge}')
@@ -421,23 +395,25 @@ class Canvas:
         remaining_speed = point.l2_distance(trajectory.end)
         return self._step_ball(remaining_speed)
 
-    def _get_first_intersection(self, trajectory: Line) -> Union[Tuple[Any, str, Point], None]:
+    def _get_first_intersection(self, trajectory: Line) -> Union[List[Tuple[Shape, Point, Line]], None]:
         """
         Find the first point at which the trajectory interacted with an object.
 
         :param trajectory: the trajectory of the object
-        :return: (object interacted with, object edge name, point of interaction)
+        :return: (shape object interacted with, point of interaction, line object interacted with)
         """
-        first_intersection = None
         result = None
-        for o, d in self.get_edges().items():
-            for edge, line in d.items():
-                i = trajectory.get_intersection(line)
-                if i is not None:
-                    if first_intersection is None:
-                        result = o, edge, i, line
-                    elif line.point1_before_point2(i, first_intersection):
-                        result = o, edge, i, line
+
+        for o in self.get_objects():
+            intersection_result = o.get_intersection(trajectory)
+            if intersection_result is not None:
+                edge, intersection = intersection_result
+                if result is None:
+                    result = [(o, intersection, edge)]
+                elif intersection == result[0][1]:  # we have a shared boundary
+                    result = result.append((o, intersection, edge))
+                elif trajectory.point1_before_point2(intersection, result[0][1]):
+                    result = [(o, intersection, edge)]
         return result
 
     def _get_ball_speed(self) -> float:
@@ -451,7 +427,9 @@ class Canvas:
         Move the opponents paddle. Override this in a subclass to change the behavior.
         """
         if random.random() < self.their_update_probability:
-            if self.paddle_l.y_pos < self.ball.y_pos:
-                self.paddle_l.up()
+            if self.paddle_l.y < self.ball.y:
+                if self.paddle_l.top_bound < self.top_bound:
+                    self.paddle_l.up()
             else:
-                self.paddle_l.down()
+                if self.paddle_l.bot_bound > self.bot_bound:
+                    self.paddle_l.down()
