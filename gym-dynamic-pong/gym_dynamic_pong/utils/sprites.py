@@ -155,7 +155,7 @@ class Canvas(Rectangle):
 
     # noinspection PyMethodOverriding
     def to_numpy(self) -> np.ndarray:
-        out = np.zeros((self.height, self.width), dtype=np.bool)
+        out = np.zeros((round(self.height), round(self.width)), dtype=np.bool)
 
         for sprite in (self.ball, self.paddle_l, self.paddle_r):
             out |= sprite.to_numpy(self.height, self.width)
@@ -242,9 +242,9 @@ class Canvas(Rectangle):
         reward = 0
         if obj is self:  # border interaction
             reward = self._interact_border(point, edge, trajectory)
-        elif obj is self.paddle_l or obj is self.paddle_r:  # paddle interaction
+        elif isinstance(obj, Paddle):  # paddle interaction
             self._interact_paddle(obj, point, trajectory)
-        elif obj is self.snell:
+        elif isinstance(obj, Snell):
             self._refract(obj, point, edge, trajectory)
 
         return reward
@@ -258,10 +258,10 @@ class Canvas(Rectangle):
         reward = self._finish_step_ball(point, trajectory)
         return reward
 
-    def _refract(self, obj: Snell, point: Point, trajectory: Line, boundary: Line):
+    def _refract(self, obj: Snell, point: Point, edge: Line, trajectory: Line):
         s0, s1 = self._get_start_and_end_speed(obj, trajectory)
 
-        angle = boundary.angle_to_normal(trajectory)
+        angle = edge.angle_to_normal(trajectory)
         if self._exceeds_critical_angle(angle, s0, s1):
             # TODO: reflect to arbitrary angle (non-vertical interface)
             self._reflect(Point(-1, 1), point, trajectory)
@@ -269,7 +269,7 @@ class Canvas(Rectangle):
 
         new_angle = math.asin(s1 / s0 * math.sin(angle))
 
-        boundary_angle, new_angle = self._adjust_refraction_to_boundary_angle(boundary, new_angle)
+        boundary_angle, new_angle = self._adjust_refraction_to_boundary_angle(edge, new_angle)
         new_angle = self._adjust_refraction_to_direction_of_incidence(boundary_angle, new_angle, trajectory)
         self.ball.angle = new_angle
 
