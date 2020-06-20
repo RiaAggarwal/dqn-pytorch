@@ -463,17 +463,28 @@ class Rectangle(Shape):
 
     def to_numpy(self, height: int, width: int) -> np.ndarray:
         """
-        Renders the rectangle object on the canvas given by `max_height` and `max_width`
+        Renders the rectangle object on the canvas given by `height` and `width`
 
+        :param height: canvas height
+        :param width: canvas width
         :return: canvas as numpy array
         """
-        # TODO: consider making this sparse
+        assert isinstance(height, int), f"height must be type int, not type {type(height)}"
+        assert isinstance(width, int), f"width must be type int, not type {type(width)}"
         out = np.zeros((height, width), dtype=np.bool)
 
         top = height - round(self.top_bound)
+        if top < 0:
+            top = 0
         bottom = height - round(self.bot_bound)
+        if bottom > height:
+            bottom = height
         left = round(self.left_bound)
+        if left < 0:
+            left = 0
         right = round(self.right_bound)
+        if right > width:
+            right = width
 
         out[top:bottom + 1, left:right + 1] = True
         return out

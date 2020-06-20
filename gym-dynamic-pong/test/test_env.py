@@ -16,7 +16,7 @@ class TestVideoOutputManually(unittest.TestCase):
 
     def test_step_executes_down_manually(self):
         for i in range(50):
-            self.env.step(1)
+            self.env.step(2)
             self.env.render()
 
     def test_big_right_paddle(self):
