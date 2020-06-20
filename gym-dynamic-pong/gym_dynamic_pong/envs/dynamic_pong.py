@@ -150,7 +150,7 @@ class DynamicPongEnv(gym.Env):
             self._init_paddle('left', self.their_paddle_height, self.their_paddle_speed),
             self._init_paddle('right', self.our_paddle_height, self.our_paddle_speed),
             self._init_ball(),
-            Snell(0.25, self.height, self.width, self.snell_speed),
+            Snell(0.25 * self.width, self.height, self.snell_speed),
             self.default_speed,
             self.height,
             self.width,
@@ -160,20 +160,21 @@ class DynamicPongEnv(gym.Env):
     def _init_paddle(self, which_side: str, height, speed) -> Paddle:
         """
         Create a paddle object
+        Todo max_angle
 
         :param which_side: 'left' or 'right'
         :param speed: the number of units the paddle can move in a single frame
         :param height: the height of the paddle
         """
-        paddle = Paddle(height, int(0.02 * self.width) + 1, speed, which_side, self.width, self.height)
-        paddle.y_pos = self.height / 2
+        paddle = Paddle(height, int(0.02 * self.width) + 1, speed, which_side)
+        paddle.y = self.height / 2
         return paddle
 
     def _init_ball(self) -> Ball:
         """
         Create a ball object
         """
-        ball = Ball(self.height, self.width)
+        ball = Ball()
         ball.x_pos = self.width // 2
         ball.y_pos = self.height // 2
         return ball

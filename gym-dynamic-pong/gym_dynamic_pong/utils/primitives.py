@@ -1,5 +1,7 @@
 import math
+import random
 from typing import Tuple, Union, Dict
+from abc import ABC, abstractmethod
 
 import numpy as np
 
@@ -50,6 +52,9 @@ class Point:
                 return math.atan(self.y / self.x)
             else:
                 return math.pi + math.atan(self.y / self.x)
+
+    def __len__(self):
+        return self.l2_norm
 
     def __iter__(self):
         return (p for p in (self.x, self.y))
@@ -186,6 +191,15 @@ class Line:
     def angle(self):
         return (self.end - self.start).angle
 
+    @angle.setter
+    def angle(self, value) -> None:
+        """
+        Rotates the line around the start such that the angle equals `value`
+
+        :param value: The new angle of the line
+        """
+        self.end = self.start + Point(value) * len(self)
+
     @property
     def unit_vector(self) -> Point:
         v = self.end - self.start
@@ -213,14 +227,60 @@ class Line:
         return (p for p in (self.start, self.end))
 
 
-class Circle:
-    def __init__(self, center: Point, radius: float, max_width=210, max_height=160):
+class Shape(ABC):
+    @abstractmethod
+    def get_intersection(self, line: Line) -> Union[Tuple[Line, Point], None]:
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def pos(self):
+        raise NotImplementedError()
+
+    @pos.setter
+    @abstractmethod
+    def pos(self, value: Union[Tuple[Union[int, float], Union[int, float]], Point]):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def _get_edges(self) -> Dict[str, Line]:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def is_overlapping(self, other) -> bool:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def is_in(self, point: Point) -> bool:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def to_numpy(self, height: int, width: int) -> np.ndarray:
+        raise NotImplementedError()
+
+
+class Circle(Shape):
+    def __init__(self, center: Point, radius: float):
         self.center = center
         self.radius = radius
-        self.max_width = max_width
-        self.max_height = max_height
 
-    def get_intersection(self, line: Line) -> Union[Point, None]:
+    @property
+    def pos(self):
+        return self.center
+
+    def _get_edges(self) -> Dict[str, Line]:
+        pass
+
+    def is_overlapping(self, other) -> bool:
+        raise NotImplementedError()
+
+    def is_in(self, point: Point) -> bool:
+        raise NotImplementedError()
+
+    def to_numpy(self, height: int, width: int) -> np.ndarray:
+        raise NotImplementedError()
+
+    def _get_intersection_point(self, line: Line) -> Union[Point, None]:
         """
         Return the first intersection point of the line segment and the circle if they intersect, None if they don't
 
@@ -262,10 +322,30 @@ class Circle:
             else:
                 return None
 
+    def _get_tangent(self, point: Point) -> Line:
+        """
+        The user must verify that `point` is on the circle
 
-class Rectangle:
+        :param point: `primitives.Point`
+        :return: The tangent line. (only the direction of the line is considered)
+        """
+        line = Line(point, point + Point(1, 1))  # line with non-zero length starting at the intersection
+        angle = (point - self.center).angle % (2 * math.pi)
+        line.angle = math.pi / 2 + angle  # set line perpendicular to the intersection
+        return line
+
+    def get_intersection(self, line: Line) -> Union[Tuple[Line, Point], None]:
+        point = self._get_intersection_point(line)
+        if point is None:
+            return None
+        else:
+            edge = self._get_tangent(point)
+            return edge, point
+
+
+class Rectangle(Shape):
     """
-    Class to help render rectangular objects in numpy
+    A rectangular shape with lots of helper methods.
     """
 
     def __init__(self, **kwargs):
@@ -277,68 +357,54 @@ class Rectangle:
         :param height: the height of the rectangle
         :param width: the width of the rectangle
         """
-        self._x_pos = 0
-        self._y_pos = 0
+        self.x = 0
+        self.y = 0
 
-        self.max_width = kwargs.get('max_width', 210)
-        self.max_height = kwargs.get('max_height', 160)
         self.height = kwargs.pop('height')
         self.width = kwargs.pop('width')
 
-        for v in self.max_width, self.max_height, self.width, self.height:
-            assert isinstance(v, int), "Dimensions must be integer values"
+    def get_intersection(self, line: Line) -> Union[Tuple[Line, Point], None]:
+        """
+        Get the first point of intersection between the line and the object
+
+        :param line: `primitives.Line` object
+        :return: The point and edge of intersection as a tuple or `None`
+        """
+        result = None
+        for e in self._get_edges():
+            i = e.get_intersection(line)
+            if i is not None:
+                if result is None:
+                    result = e, i
+                elif line.point1_before_point2(i, result[1]):
+                    result = e, i
+        return result
 
     @property
     def left_bound(self):
-        return self._x_pos - self.width / 2
+        return self.x - self.width / 2
 
     @property
     def right_bound(self):
-        return self._x_pos + self.width / 2
+        return self.x + self.width / 2
 
     @property
     def top_bound(self):
-        return self._y_pos + self.height / 2
+        return self.y + self.height / 2
 
     @property
     def bot_bound(self):
-        return self._y_pos - self.height / 2
-
-    @property
-    def x_pos(self):
-        return self._x_pos
-
-    @x_pos.setter
-    def x_pos(self, value):
-        if value < 0:
-            self._x_pos = 0
-        elif value > self.max_width:
-            self._x_pos = self.max_width
-        else:
-            self._x_pos = value
-
-    @property
-    def y_pos(self):
-        return self._y_pos
-
-    @y_pos.setter
-    def y_pos(self, value):
-        if value < 0:
-            self._y_pos = 0
-        elif value > self.max_height:
-            self._y_pos = self.max_height
-        else:
-            self._y_pos = value
+        return self.y - self.height / 2
 
     @property
     def pos(self):
-        return Point(self._x_pos, self._y_pos)
+        return Point(self.x, self.y)
 
     @pos.setter
     def pos(self, value: Union[Tuple[Union[int, float], Union[int, float]], Point]):
-        self.x_pos, self.y_pos = tuple(value)
+        self.x, self.y = tuple(value)
 
-    def get_edges(self) -> Dict[str, Line]:
+    def _get_edges(self) -> Tuple[Line, Line, Line, Line]:
         """
         Edges are assigned in a clockwise fashion so that the interior of the rectangle is to the right of the ray.
 
@@ -348,12 +414,7 @@ class Rectangle:
         lt = self.left_bound, self.top_bound
         rb = self.right_bound, self.bot_bound
         rt = self.right_bound, self.top_bound
-        return {
-            'left'  : Line(lb, lt),
-            'top'   : Line(lt, rt),
-            'right' : Line(rt, rb),
-            'bottom': Line(rb, lb)
-        }
+        return Line(lb, lt), Line(lt, rt),  Line(rt, rb), Line(rb, lb)
 
     def is_overlapping(self, other) -> bool:
         """
@@ -380,17 +441,17 @@ class Rectangle:
         else:
             return False
 
-    def to_numpy(self) -> np.ndarray:
+    def to_numpy(self, height: int, width: int) -> np.ndarray:
         """
         Renders the rectangle object on the canvas given by `max_height` and `max_width`
 
         :return: canvas as numpy array
         """
         # TODO: consider making this sparse
-        out = np.zeros((self.max_height, self.max_width), dtype=np.bool)
+        out = np.zeros((height, width), dtype=np.bool)
 
-        top = self.max_height - round(self.top_bound)
-        bottom = self.max_height - round(self.bot_bound)
+        top = height - round(self.top_bound)
+        bottom = height - round(self.bot_bound)
         left = round(self.left_bound)
         right = round(self.right_bound)
 
