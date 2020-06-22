@@ -111,7 +111,7 @@ def train(env, n_episodes, history, render=False):
             action = select_action(state)
 
             if render:
-                env.render()
+                env.render(mode=render, save_dir='videos')
 
             obs, reward, done, info = env.step(action)
 
@@ -242,7 +242,7 @@ if __name__ == '__main__':
                         help='choose a network architecture (default: dqn_pong_model)')
     parser.add_argument('--pretrain', default=False, type=bool,
                         help='whether need pretrained network (default: False)')
-    parser.add_argument('--render', default=False, type=bool,
+    parser.add_argument('--render', default=False, type=str,
                         help='Render the game (default: False)')
     parser.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
                         help='Probability that the opponent moves in the direction of the ball (default: 0.2)')
