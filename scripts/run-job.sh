@@ -118,6 +118,10 @@ if [ -n "$update_prob" ]; then
   options+=" --update-prob "
   options+=$update_prob
 fi
+if [ -n "$paddle_angle" ]; then
+  options+=" --paddle-angle "
+  options+=$paddle_angle
+fi
 if [ -n "$episodes" ]; then
   options+=" --episodes "
   options+=$episodes
