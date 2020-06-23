@@ -1,3 +1,4 @@
+import math
 import os
 import time
 from typing import Tuple
@@ -24,7 +25,9 @@ class DynamicPongEnv(gym.Env):
                  their_paddle_speed=3,
                  our_paddle_height=45,
                  their_paddle_height=45,
-                 their_update_probability=0.2,):
+                 their_update_probability=0.2,
+                 our_paddle_angle=math.pi / 4,
+                 their_paddle_angle=math.pi / 4, ):
 
         for v in width, height:
             assert isinstance(v, int), "width and height must be integers"
@@ -39,6 +42,8 @@ class DynamicPongEnv(gym.Env):
         self.their_paddle_speed = their_paddle_speed
         self.our_paddle_height = our_paddle_height
         self.their_paddle_height = their_paddle_height
+        self.our_paddle_angle = our_paddle_angle
+        self.their_paddle_angle = their_paddle_angle
         self.their_update_probability = their_update_probability
 
         # initialization
@@ -147,14 +152,15 @@ class DynamicPongEnv(gym.Env):
         Initialize the Canvas object containing all the important interactions in the environment.
         """
         self.env = Canvas(
-            self._init_paddle('left', self.their_paddle_height, self.their_paddle_speed),
-            self._init_paddle('right', self.our_paddle_height, self.our_paddle_speed),
+            self._init_paddle('left', self.their_paddle_height, self.their_paddle_speed, self.their_paddle_angle),
+            self._init_paddle('right', self.our_paddle_height, self.our_paddle_speed, self.our_paddle_angle),
             self._init_ball(),
             self._init_snell(),
             self.default_speed,
             self.height,
             self.width,
             self.their_update_probability,
+            self.our_paddle_angle,
         )
 
     def _init_snell(self):
@@ -163,7 +169,7 @@ class DynamicPongEnv(gym.Env):
         snell.pos = self.width / 2, self.height / 2
         return snell
 
-    def _init_paddle(self, which_side: str, height, speed) -> Paddle:
+    def _init_paddle(self, which_side: str, height: float, speed:float, angle:float) -> Paddle:
         """
         Create a paddle object
         Todo max_angle
@@ -173,7 +179,7 @@ class DynamicPongEnv(gym.Env):
         :param height: the height of the paddle
         """
         assert which_side in ['left', 'right'], f"side must be 'left' or 'right', not {which_side}"
-        paddle = Paddle(height, int(0.02 * self.width) + 1, speed, which_side)
+        paddle = Paddle(height, int(0.02 * self.width) + 1, speed, which_side, angle)
         paddle.y = self.height / 2
         if which_side == 'left':
             paddle.x = paddle.width / 2

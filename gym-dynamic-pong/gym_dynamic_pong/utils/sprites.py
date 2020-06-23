@@ -10,7 +10,7 @@ EPSILON = 1e-7
 
 
 class Paddle(Rectangle):
-    def __init__(self, height: float, width: float, speed: float, side: str, max_angle: float = math.pi / 4):
+    def __init__(self, height: float, width: float, speed: float, side: str, max_angle: float):
         """
 
         :param height: The paddle height
@@ -110,7 +110,7 @@ class Canvas(Rectangle):
     actions = {k: v for v, k in action_meanings.items()}
 
     def __init__(self, paddle_l: Paddle, paddle_r: Paddle, ball: Ball, snell: Snell, ball_speed: int, height: int,
-                 width: int, their_update_probability: float, **kwargs):
+                 width: int, their_update_probability: float, paddle_angle: float, **kwargs):
 
         super().__init__(height=height, width=width, **kwargs)
         self.pos = self.width / 2, self.height / 2

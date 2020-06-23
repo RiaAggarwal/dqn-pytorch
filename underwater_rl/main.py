@@ -234,6 +234,8 @@ if __name__ == '__main__':
                         help='snell speed (default: 3.0)')
     parser.add_argument('--ps', '--paddle-speed', default=3.0, type=float,
                         help='paddle speed (default: 3.0)')
+    parser.add_argument('--pa', '--paddle-angle', default=45, type=float,
+                        help='Maximum angle the ball can leave the paddle (default: 45deg)')
     parser.add_argument('--pl', '--paddle-length', default=45, type=int,
                         help='paddle length (default: 45)')
     parser.add_argument('--lr', '--learning-rate', default=1e-4, type=float,
@@ -243,7 +245,7 @@ if __name__ == '__main__':
     parser.add_argument('--pretrain', default=False, type=bool,
                         help='whether need pretrained network (default: False)')
     parser.add_argument('--render', default=False, type=str,
-                        help='Render the game (default: False)')
+                        help="'human' or 'png'. Omit if no rendering is desired.")
     parser.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
                         help='Probability that the opponent moves in the direction of the ball (default: 0.2)')
     parser.add_argument('--episodes', dest='episodes', default=4000, type=int,
@@ -299,6 +301,8 @@ if __name__ == '__main__':
         their_paddle_speed=args.ps,
         our_paddle_height=args.pl,
         their_paddle_height=args.pl,
+        our_paddle_angle=math.radians(args.pa),
+        their_paddle_angle=math.radians(args.pa),
         their_update_probability=args.update_prob,
     )
     # TODO: consider removing some of the wrappers - may improve performance
