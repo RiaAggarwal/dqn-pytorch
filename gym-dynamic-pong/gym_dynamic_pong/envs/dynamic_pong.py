@@ -137,7 +137,7 @@ class DynamicPongEnv(gym.Env):
         self.ax.set_title(f"{self.env.their_score}                    {self.env.our_score}")
         self.fig.canvas.draw()
 
-        path = os.path.join(save_dir, f'{self.frame_count:07d}.png')
+        path = os.path.join(save_dir, f'{self.frame_count:d}.png')
         self.frame_count += 1
         self.fig.savefig(path)
 
