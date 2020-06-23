@@ -287,6 +287,7 @@ if __name__ == '__main__':
 
     logger = get_logger(args.store_dir)
     logger.info(get_args_status_string(parser, args))
+    logger.info(f'Device: {device}')
 
     # create environment
     # env = gym.make("PongNoFrameskip-v4")
