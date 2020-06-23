@@ -1,0 +1,134 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ian-19-20-21-22-23
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      containers:
+      - args:
+        - cd /data/ian/pong-underwater-rl; git fetch origin master; git checkout master;
+          git pull origin master; pip install -e gym-dynamic-pong; cd underwater_rl;
+          python main.py  --width 160 --height 160 --ball 3.0 --snell 3.0 --paddle-speed
+          3.0 --paddle-length 45 --paddle-angle 89 --learning-rate 1e-4 --update-prob
+          0.4 --episodes 4000 --network dqn_pong_model --store-dir ../experiments/19;
+        command:
+        - /bin/sh
+        - -c
+        image: gitlab-registry.nautilus.optiputer.net/jiacheng/docker-images:gym
+        name: gpu-container
+        resources:
+          limits:
+            cpu: '2'
+            memory: 8Gi
+            nvidia.com/gpu: '1'
+          requests:
+            cpu: '1'
+            memory: 5Gi
+            nvidia.com/gpu: '1'
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        - mountPath: /dev/shm
+          name: dshm
+      - args:
+        - 'sleep 30; cd /data/ian/pong-underwater-rl; pip install -e gym-dynamic-pong;
+          cd underwater_rl; python main.py  --width 160 --height 160 --ball 1.0 --snell
+          1.0 --paddle-speed 1.0 --paddle-length 45 --paddle-angle 45 --learning-rate
+          1e-4 --update-prob 0.2 --episodes 4000 --network dqn_pong_model --store-dir
+          ../experiments/20; '
+        command:
+        - /bin/sh
+        - -c
+        image: gitlab-registry.nautilus.optiputer.net/jiacheng/docker-images:gym
+        name: gpu-container-1
+        resources:
+          limits:
+            cpu: '2'
+            memory: 8Gi
+          requests:
+            cpu: '1'
+            memory: 5Gi
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        - mountPath: /dev/shm
+          name: dshm
+      - args:
+        - 'sleep 30; cd /data/ian/pong-underwater-rl; pip install -e gym-dynamic-pong;
+          cd underwater_rl; python main.py  --width 160 --height 160 --ball 1.0 --snell
+          1.0 --paddle-speed 1.0 --paddle-length 45 --paddle-angle 45 --learning-rate
+          1e-4 --update-prob 0.4 --episodes 4000 --network dqn_pong_model --store-dir
+          ../experiments/21; '
+        command:
+        - /bin/sh
+        - -c
+        image: gitlab-registry.nautilus.optiputer.net/jiacheng/docker-images:gym
+        name: gpu-container-2
+        resources:
+          limits:
+            cpu: '2'
+            memory: 8Gi
+          requests:
+            cpu: '1'
+            memory: 5Gi
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        - mountPath: /dev/shm
+          name: dshm
+      - args:
+        - 'sleep 30; cd /data/ian/pong-underwater-rl; pip install -e gym-dynamic-pong;
+          cd underwater_rl; python main.py  --width 160 --height 160 --ball 3.0 --snell
+          3.0 --paddle-speed 3.0 --paddle-length 30 --paddle-angle 45 --learning-rate
+          1e-4 --update-prob 0.2 --episodes 4000 --network dqn_pong_model --store-dir
+          ../experiments/22; '
+        command:
+        - /bin/sh
+        - -c
+        image: gitlab-registry.nautilus.optiputer.net/jiacheng/docker-images:gym
+        name: gpu-container-3
+        resources:
+          limits:
+            cpu: '2'
+            memory: 8Gi
+          requests:
+            cpu: '1'
+            memory: 5Gi
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        - mountPath: /dev/shm
+          name: dshm
+      - args:
+        - 'sleep 30; cd /data/ian/pong-underwater-rl; pip install -e gym-dynamic-pong;
+          cd underwater_rl; python main.py  --width 160 --height 160 --ball 3.0 --snell
+          3.0 --paddle-speed 3.0 --paddle-length 20 --paddle-angle 45 --learning-rate
+          1e-4 --update-prob 0.2 --episodes 4000 --network dqn_pong_model --store-dir
+          ../experiments/23; '
+        command:
+        - /bin/sh
+        - -c
+        image: gitlab-registry.nautilus.optiputer.net/jiacheng/docker-images:gym
+        name: gpu-container-4
+        resources:
+          limits:
+            cpu: '2'
+            memory: 8Gi
+          requests:
+            cpu: '1'
+            memory: 5Gi
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        - mountPath: /dev/shm
+          name: dshm
+      restartPolicy: Never
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: storage
+      - emptyDir:
+          medium: Memory
+        name: dshm
