@@ -46,6 +46,9 @@ if __name__ == '__main__':
     parser.add_argument('-u', '--user', type=str, required=True, help="Must correspond to /data/<user>/")
     parser.add_argument('-n', '--name', type=str, required=True, nargs='+',
                         help="Job name. Must contain only alphanumeric characters and '-'")
+    parser.add_argument('-c', '--cpu', type=int, default=1, help="CPU request (default: 1)")
+    parser.add_argument('-g', '--gpu', type=int, default=1, help="GPU request (default: 1)")
+    parser.add_argument('-m', '--memory', type=int, default=6, help="Memory request (default: 6)")
     parser.add_argument('-b', '--branch', default='master', type=str, help="Branch to run (default: master)")
     parser.add_argument('-f', '--file', default='default-config.yml', nargs='+', type=str,
                         help="Config file (default: default-config.yml)")
@@ -66,29 +69,30 @@ if __name__ == '__main__':
     # configure the first container
     cmd_template = job['spec']['template']['spec']['containers'][0]['args'][0]
     cmd_template = cmd_template.replace('$', '')
-    cmd_0 = cmd_template.format(user=args.user, branch=args.branch, options=experiments_options[0])
-
-    job['spec']['template']['spec']['containers'][0]['args'][0] = cmd_0
+    cmd = cmd_template.format(user=args.user, branch=args.branch, options=experiments_options[0])
 
     if len(args.name) > 1:
-        container_spec = job['spec']['template']['spec']['containers'][0]
-        cmd_template = filter_git_commands(cmd_template)
-        cmd_template = '; '.join(['sleep 30', cmd_template])  # sleep the extra containers for 30s before starting
-        for n, opts in enumerate(experiments_options[1:]):
-            spec = copy.deepcopy(container_spec)
-            cmd = cmd_template.format(user=args.user, branch=args.branch, options=opts)
-            spec['args'][0] = cmd  # set commands
-            spec['name'] = f"{container_spec['name']}-{n + 1}"  # set container name
-            del spec['resources']['limits']['nvidia.com/gpu']  # remove gpu resources
-            del spec['resources']['requests']['nvidia.com/gpu']  # remove gpu resources
-            job['spec']['template']['spec']['containers'].append(spec)
+        commands = cmd.split(';')
+        del commands[-1]  # account for trailing semicolon
+        commands = [s.strip() for s in commands]
+        for opts in experiments_options[1:]:
+            commands.append(f'python main.py {opts}')
+        cmd = '; '.join(commands[:-len(args.name)]) + '; ' + ' & '.join(commands[-len(args.name):])
+    else:
+        cmd = cmd_template.format(user=args.user, branch=args.branch, options=experiments_options[0])
+
+    job['spec']['template']['spec']['containers'][0]['args'][0] = cmd
+    job['spec']['template']['spec']['containers'][0]['resources']['limits']['memory'] = f'{round(args.memory * 1.2):d}Gi'
+    job['spec']['template']['spec']['containers'][0]['resources']['limits']['nvidia.com/gpu'] = args.gpu
+    job['spec']['template']['spec']['containers'][0]['resources']['limits']['cpu'] = args.cpu
+    job['spec']['template']['spec']['containers'][0]['resources']['requests']['memory'] = f'{args.memory}Gi'
+    job['spec']['template']['spec']['containers'][0]['resources']['requests']['nvidia.com/gpu'] = args.gpu
+    job['spec']['template']['spec']['containers'][0]['resources']['requests']['cpu'] = args.cpu
 
     # write the yaml string
     job_yaml = yaml.dump(job, Dumper=yaml.Dumper)
 
     if args.preview:
-        with open('final.yml', 'w') as f:
-            f.write(job_yaml)
         print(job_yaml)
     else:
         with open('final.yml', 'w') as f:
