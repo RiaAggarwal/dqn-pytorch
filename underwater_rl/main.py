@@ -82,7 +82,12 @@ def optimize_model():
     state_action_values = policy_net(state_batch).gather(1, action_batch)
 
     next_state_values = torch.zeros(BATCH_SIZE, device=device)
-    next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
+    if DOUBLE:
+        argmax_a_q_sp = policy_net(non_final_next_states).max(1)[1]
+        q_sp = target_net(non_final_next_states).detach()
+        next_state_values[non_final_mask] = q_sp[torch.arange(torch.sum(non_final_mask),device=device), argmax_a_q_sp]
+    else:
+        next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
     loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
@@ -242,7 +247,9 @@ if __name__ == '__main__':
                         help='learning rate (default: 1e-4)')
     parser.add_argument('--network', default='dqn_pong_model',
                         help='choose a network architecture (default: dqn_pong_model)')
-    parser.add_argument('--pretrain', default=False, type=bool,
+    parser.add_argument('--double', default=False, action='store_true',
+                        help='whether use double dqn (default: False)')
+    parser.add_argument('--pretrain', default=False, action='store_true',
                         help='whether need pretrained network (default: False)')
     parser.add_argument('--render', default=False, type=str,
                         help="'human' or 'png'. Omit if no rendering is desired.")
@@ -278,8 +285,9 @@ if __name__ == '__main__':
     TARGET_UPDATE = 1000
     RENDER = args.render
     lr = args.lr
-    #INITIAL_MEMORY = 10000
-    #MEMORY_SIZE = 10 * INITIAL_MEMORY
+    INITIAL_MEMORY = 10000
+    MEMORY_SIZE = args.replay
+    DOUBLE = args.double
 
     # number episodes between logging and saving
     LOG_INTERVAL = 20
@@ -357,7 +365,7 @@ if __name__ == '__main__':
 
 
     # initialize replay memory
-    memory = ReplayMemory(args.replay)
+    memory = ReplayMemory(MEMORY_SIZE)
 
     # train model
     history = train(env, args.episodes, history, render=RENDER)
