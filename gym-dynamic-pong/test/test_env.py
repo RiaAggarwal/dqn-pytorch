@@ -83,19 +83,21 @@ class TestEnvironmentBehavior(unittest.TestCase):
         self.assertEqual(1, self.env.env.our_score)
 
     def test_ball_does_not_get_stuck_in_1000_steps_with_defaults(self):
-        self.plausible_ball_motion_tester()
+        self.plausible_ball_motion_tester(1000)
 
     def test_ball_does_not_get_stuck_in_1000_steps_with_max_paddles(self):
         self.env.env.paddle_r.height = self.height
         self.env.env.paddle_l.height = self.height
-        self.plausible_ball_motion_tester()
+        self.plausible_ball_motion_tester(1000)
 
-    def plausible_ball_motion_tester(self):
+    def plausible_ball_motion_tester(self, n_steps, render=False):
         self.env.step(0)
         x_prev = self.env.env.ball.x
         y_prev = self.env.env.ball.y
-        for i in range(1000):
+        for i in range(n_steps):
             self.env.step(0)
+            if render:
+                self.env.render()
             x_pos = self.env.env.ball.x
             y_pos = self.env.env.ball.y
 
@@ -246,6 +248,12 @@ class TestEnvironmentBehaviorWithRefraction(TestEnvironmentBehavior):
         case7: entering snell to the right at positive angle
         case8: entering snell to the right at negative angle
     """
+    def test_ball_does_not_get_stuck_in_5000_steps_with_very_slow_snell_layer(self):
+        self.default_speed = 10
+        self.snell_speed = 2
+        self.create_env()
+        self.plausible_ball_motion_tester(5000, render=True)
+
     def test_ball_leaving_snell_at_pi_12_refracts_to_0p544(self):
         self.env.env.ball.angle = math.pi / 12
         self.env.env.ball.x = self.env.env.snell.right_bound - self.env.default_speed / 10

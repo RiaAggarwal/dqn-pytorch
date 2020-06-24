@@ -6,7 +6,25 @@ import numpy as np
 
 from . import Rectangle, Line, Point, Shape
 
+__all__ = ['get_critical_angle', 'Paddle', 'Ball', 'Snell', 'Canvas']
+
 EPSILON = 1e-7
+
+
+def get_critical_angle(s0: float, s1: float) -> Union[float, None]:
+    """
+    Returns the critical angle if it exists for a ball moving from a medium with velocity `s0` to a medium with
+    velocity `s1`. If the critical angle does not exist, returns None.
+
+    :param s0: speed of the initial medium
+    :param s1: speed of the final medium
+    :return: critical angle or None
+    """
+    if s0 < s1:
+        critical_angle = math.asin(s0 / s1)
+    else:
+        critical_angle = None
+    return critical_angle
 
 
 class Paddle(Rectangle):
@@ -55,12 +73,18 @@ class Paddle(Rectangle):
 
 
 class Ball(Rectangle):
-    def __init__(self):
+    def __init__(self, max_initial_angle):
         super().__init__(width=2, height=2)
-        self._angle = math.pi - (random.random() - 0.5) * (math.pi / 3)
+        self.max_initial_angle = max_initial_angle
+        self.reset(self.pos, direction='left')
 
-    def reset(self, position: Union[Tuple[float, float], Point]):
-        self._angle = (random.random() - 0.5) * (math.pi / 3)
+    def reset(self, position: Union[Tuple[float, float], Point], direction: str = 'right'):
+        if direction == 'right':
+            self._angle = (2 * random.random() - 1) * self.max_initial_angle
+        elif direction == 'left':
+            self._angle = math.pi - (2 * random.random() - 1) * self.max_initial_angle
+        else:
+            raise ValueError(f"direction must be 'left' or 'right', not {direction}")
         self.pos = position
 
     @property
@@ -115,7 +139,7 @@ class Canvas(Rectangle):
         super().__init__(height=height, width=width, **kwargs)
         self.pos = self.width / 2, self.height / 2
 
-        assert isinstance(their_update_probability, (float, int)),\
+        assert isinstance(their_update_probability, (float, int)), \
             f"their_update_probability must be numeric, not {type(their_update_probability)}"
         assert 0 <= their_update_probability <= 1, f"{their_update_probability} outside allowed bounds [0, 1]"
 
@@ -295,7 +319,7 @@ class Canvas(Rectangle):
         :return: True if the angle exceeds the critical angle
         """
         if s1 > s0:  # if the second speed is faster, there is a critical angle
-            critical_angle = math.asin(s0 / s1)
+            critical_angle = get_critical_angle(s0, s1)
             if abs(angle) >= critical_angle:
                 return True
         return False

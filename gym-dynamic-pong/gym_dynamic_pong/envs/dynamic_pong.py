@@ -9,7 +9,7 @@ import numpy as np
 from gym import spaces
 
 from gym_dynamic_pong.utils.misc import bool_array_to_rgb
-from gym_dynamic_pong.utils.sprites import Paddle, Ball, Snell, Canvas
+from gym_dynamic_pong.utils.sprites import *
 
 
 class DynamicPongEnv(gym.Env):
@@ -188,7 +188,12 @@ class DynamicPongEnv(gym.Env):
         """
         Create a ball object
         """
-        ball = Ball()
+        max_initial_angle = math.pi / 6
+        critical_angle = get_critical_angle(self.snell_speed, self.default_speed)
+        if critical_angle is not None:
+            if critical_angle < max_initial_angle:
+                max_initial_angle = 0.99 * critical_angle
+        ball = Ball(max_initial_angle=max_initial_angle)
         ball.pos = (self.width / 2, self.height / 2)
         return ball
 

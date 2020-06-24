@@ -126,7 +126,7 @@ class TestRendering(unittest.TestCase):
 
 class TestBall(unittest.TestCase):
     def setUp(self) -> None:
-        self.ball = Ball()
+        self.ball = Ball(math.pi / 6)
 
     def test_unit_velocity_sets_angle_to_0_for_1_0(self):
         self.ball.unit_velocity = Point(1., 0.)
