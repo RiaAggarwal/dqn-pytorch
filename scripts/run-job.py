@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 import argparse
-import copy
 import os
 import subprocess
 from typing import List, Dict
+
 import yaml
 
 
@@ -22,7 +22,8 @@ def get_options_strings(experiments: List[Dict], names: List[str]) -> List[str]:
         for k, v in ex.items():
             opt = k.replace('_', '-')
             options += f' --{opt} '
-            options += str(v)
+            if v is not None:  # boolean switches won't have arguments
+                options += str(v)
         options += f' --store-dir ../experiments/{n}'
         ex_options.append(options)
     return ex_options
