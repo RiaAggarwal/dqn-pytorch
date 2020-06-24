@@ -246,7 +246,7 @@ if __name__ == '__main__':
                         help='whether need pretrained network (default: False)')
     parser.add_argument('--render', default=False, type=str,
                         help="'human' or 'png'. Omit if no rendering is desired.")
-    parser.add_argument('--replay', default=100000, type=int,
+    parser.add_argument('--replay', default=10000, type=int,
             help="change the replay mem size (default: 100000)")
     parser.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
                         help='Probability that the opponent moves in the direction of the ball (default: 0.2)')
@@ -278,8 +278,8 @@ if __name__ == '__main__':
     TARGET_UPDATE = 1000
     RENDER = args.render
     lr = args.lr
-    #INITIAL_MEMORY = 10000
-    #MEMORY_SIZE = 10 * INITIAL_MEMORY
+    INITIAL_MEMORY = args.replay
+    MEMORY_SIZE = 10 * INITIAL_MEMORY
 
     # number episodes between logging and saving
     LOG_INTERVAL = 20
@@ -357,7 +357,7 @@ if __name__ == '__main__':
 
 
     # initialize replay memory
-    memory = ReplayMemory(args.replay)
+    memory = ReplayMemory(MEMORY_SIZE)
 
     # train model
     history = train(env, args.episodes, history, render=RENDER)
