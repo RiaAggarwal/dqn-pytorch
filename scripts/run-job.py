@@ -80,7 +80,7 @@ if __name__ == '__main__':
             commands.append(f'python main.py {opts}')
         cmd = '; '.join(commands[:-len(args.name)]) + '; ' + ' & '.join(commands[-len(args.name):])
         # Add a process to keep the pod alive while the background jobs are running
-        cmd += ' & while [ -n "$(jobs | grep Running)" ]; do sleep 10; done;'
+        cmd += ' & wait < <(jobs -p);'
     else:
         cmd = cmd_template.format(user=args.user, branch=args.branch, options=experiments_options[0])
 
