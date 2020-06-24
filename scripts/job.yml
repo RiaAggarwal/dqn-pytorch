@@ -8,7 +8,7 @@ spec:
       containers:
       - name: gpu-container
         image: gitlab-registry.nautilus.optiputer.net/jiacheng/docker-images:gym
-        command: ["/bin/sh","-c"]
+        command: ["/bin/bash","-c"]
         args:
         - cd /data/${user}/pong-underwater-rl;
           git fetch origin ${branch};
