@@ -1,0 +1,54 @@
+2020-06-23 16:57:55,216	INFO	--width 160 --height 160 --ball 1.0 --snell 1.0 --ps 1.0 --paddle-speed 1.0 --pa 45.0 --paddle-angle 45.0 --pl 45 --paddle-length 45 --lr 0.0001 --learning-rate 0.0001 --network dqn_pong_model --pretrain False --render False --update-prob 0.2 --episodes 4000 --checkpoint dqn_pong_model --history history.p --store-dir ../experiments/20 
+2020-06-23 17:02:04,121	INFO	Total steps: 26902	Episode: 20/1405	Avg reward: -17.15	Avg steps: 1344
+2020-06-23 17:08:55,446	INFO	Total steps: 57150	Episode: 40/1575	Avg reward: -17.05	Avg steps: 1511
+2020-06-23 17:14:57,086	INFO	Total steps: 83605	Episode: 60/1653	Avg reward: -17.50	Avg steps: 1321
+2020-06-23 17:21:52,191	INFO	Total steps: 112495	Episode: 80/2370	Avg reward: -16.70	Avg steps: 1443
+2020-06-23 17:29:29,119	INFO	Total steps: 141983	Episode: 100/1084	Avg reward: -15.10	Avg steps: 1473
+2020-06-23 17:37:17,848	INFO	Total steps: 172097	Episode: 120/1326	Avg reward: -15.55	Avg steps: 1504
+2020-06-23 17:46:11,707	INFO	Total steps: 206346	Episode: 140/1784	Avg reward: -13.80	Avg steps: 1711
+2020-06-23 17:55:17,447	INFO	Total steps: 241237	Episode: 160/1336	Avg reward: -14.00	Avg steps: 1743
+2020-06-23 18:04:17,941	INFO	Total steps: 275718	Episode: 180/1167	Avg reward: -14.25	Avg steps: 1723
+2020-06-23 18:13:51,476	INFO	Total steps: 311876	Episode: 200/1875	Avg reward: -13.20	Avg steps: 1806
+2020-06-23 18:23:49,739	INFO	Total steps: 349542	Episode: 220/2329	Avg reward: -12.00	Avg steps: 1882
+2020-06-23 18:33:33,928	INFO	Total steps: 386536	Episode: 240/2378	Avg reward: -12.30	Avg steps: 1848
+2020-06-23 18:42:11,341	INFO	Total steps: 419139	Episode: 260/2042	Avg reward: -12.75	Avg steps: 1629
+2020-06-23 18:51:40,277	INFO	Total steps: 454902	Episode: 280/2046	Avg reward: -10.80	Avg steps: 1787
+2020-06-23 19:02:03,772	INFO	Total steps: 494304	Episode: 300/1851	Avg reward: -10.60	Avg steps: 1969
+2020-06-23 19:11:48,343	INFO	Total steps: 531173	Episode: 320/2024	Avg reward: -11.25	Avg steps: 1842
+2020-06-23 23:16:20,954	INFO	--width 160 --height 160 --ball 1.0 --snell 1.0 --ps 1.0 --paddle-speed 1.0 --pa 45.0 --paddle-angle 45.0 --pl 45 --paddle-length 45 --lr 0.0001 --learning-rate 0.0001 --network dqn_pong_model --pretrain False --render False --update-prob 0.2 --episodes 4000 --checkpoint dqn_pong_model --history history.p --store-dir ../experiments/20 
+2020-06-24 00:12:12,687	INFO	--width 160 --height 160 --ball 1.0 --snell 1.0 --ps 1.0 --paddle-speed 1.0 --pa 45.0 --paddle-angle 45.0 --pl 45 --paddle-length 45 --lr 0.0001 --learning-rate 0.0001 --network dqn_pong_model --pretrain False --render False --update-prob 0.2 --episodes 4000 --checkpoint dqn_pong_model --history history.p --store-dir ../experiments/20 
+2020-06-24 00:12:12,907	INFO	Device: cuda
+2020-06-24 00:20:55,388	INFO	--width 160 --height 160 --ball 1.0 --snell 1.0 --ps 1.0 --paddle-speed 1.0 --pa 45.0 --paddle-angle 45.0 --pl 45 --paddle-length 45 --lr 0.0001 --learning-rate 0.0001 --network dqn_pong_model --pretrain False --render False --update-prob 0.2 --episodes 4000 --checkpoint dqn_pong_model --history history.p --store-dir ../experiments/20 
+2020-06-24 00:20:55,779	INFO	Device: cuda
+2020-06-24 03:38:19,609	INFO	--width 160 --height 160 --ball 1.0 --snell 1.0 --ps 1.0 --paddle-speed 1.0 --pa 45.0 --paddle-angle 45.0 --pl 45 --paddle-length 45 --lr 0.0001 --learning-rate 0.0001 --network dqn_pong_model --pretrain False --render False --update-prob 0.2 --episodes 4000 --checkpoint dqn_pong_model --history history.p --store-dir ../experiments/20 
+2020-06-24 03:38:19,659	INFO	Device: cuda
+2020-06-24 03:48:58,698	INFO	Total steps: 27588	Episode: 20/1348	Avg reward: -17.05	Avg steps: 1378
+2020-06-24 04:05:15,439	INFO	Total steps: 55408	Episode: 40/1937	Avg reward: -17.45	Avg steps: 1390
+2020-06-24 04:21:23,323	INFO	Total steps: 82919	Episode: 60/1199	Avg reward: -16.40	Avg steps: 1374
+2020-06-24 04:37:59,932	INFO	Total steps: 110996	Episode: 80/1252	Avg reward: -16.95	Avg steps: 1402
+2020-06-24 04:55:50,096	INFO	Total steps: 140907	Episode: 100/1164	Avg reward: -16.00	Avg steps: 1494
+2020-06-24 05:13:53,284	INFO	Total steps: 170995	Episode: 120/1931	Avg reward: -15.60	Avg steps: 1503
+2020-06-24 05:33:04,859	INFO	Total steps: 202798	Episode: 140/1870	Avg reward: -14.70	Avg steps: 1589
+2020-06-24 05:53:11,775	INFO	Total steps: 236214	Episode: 160/1452	Avg reward: -14.15	Avg steps: 1669
+2020-06-24 06:13:09,756	INFO	Total steps: 269380	Episode: 180/2180	Avg reward: -14.30	Avg steps: 1657
+2020-06-24 06:31:38,936	INFO	Total steps: 301034	Episode: 200/1634	Avg reward: -14.60	Avg steps: 1581
+2020-06-24 06:50:01,439	INFO	Total steps: 332536	Episode: 220/1585	Avg reward: -12.85	Avg steps: 1574
+2020-06-24 07:08:24,977	INFO	Total steps: 364118	Episode: 240/1613	Avg reward: -13.35	Avg steps: 1578
+2020-06-24 07:27:16,238	INFO	Total steps: 396016	Episode: 260/1669	Avg reward: -12.40	Avg steps: 1593
+2020-06-24 07:47:57,505	INFO	Total steps: 430482	Episode: 280/1048	Avg reward: -11.50	Avg steps: 1722
+2020-06-24 08:09:40,563	INFO	Total steps: 466812	Episode: 300/1768	Avg reward: -10.35	Avg steps: 1815
+2020-06-24 08:31:34,222	INFO	Total steps: 503463	Episode: 320/1203	Avg reward: -10.65	Avg steps: 1831
+2020-06-24 08:54:35,213	INFO	Total steps: 542110	Episode: 340/2872	Avg reward: -8.00	Avg steps: 1931
+2020-06-24 09:19:17,592	INFO	Total steps: 583502	Episode: 360/2765	Avg reward: -9.15	Avg steps: 2068
+2020-06-24 09:42:44,241	INFO	Total steps: 622599	Episode: 380/1954	Avg reward: -10.25	Avg steps: 1953
+2020-06-24 10:10:38,587	INFO	Total steps: 668700	Episode: 400/2075	Avg reward: -7.15	Avg steps: 2304
+2020-06-24 10:39:54,744	INFO	Total steps: 717005	Episode: 420/2432	Avg reward: -5.60	Avg steps: 2414
+2020-06-24 11:07:37,028	INFO	Total steps: 762852	Episode: 440/3106	Avg reward: -4.90	Avg steps: 2291
+2020-06-24 11:35:47,857	INFO	Total steps: 809503	Episode: 460/2267	Avg reward: -5.00	Avg steps: 2331
+2020-06-24 12:08:40,666	INFO	Total steps: 864368	Episode: 480/2766	Avg reward: -1.75	Avg steps: 2742
+2020-06-24 12:44:29,760	INFO	Total steps: 924176	Episode: 500/2266	Avg reward: -1.05	Avg steps: 2989
+2020-06-24 13:18:16,998	INFO	Total steps: 980417	Episode: 520/3409	Avg reward: 1.70	Avg steps: 2811
+2020-06-24 13:51:30,996	INFO	Total steps: 1035151	Episode: 540/1856	Avg reward: 2.10	Avg steps: 2735
+2020-06-24 14:24:02,648	INFO	Total steps: 1088864	Episode: 560/2289	Avg reward: 4.50	Avg steps: 2684
+2020-06-24 14:54:45,478	INFO	Total steps: 1140000	Episode: 580/2546	Avg reward: 5.90	Avg steps: 2555
+2020-06-24 15:23:54,301	INFO	Total steps: 1188360	Episode: 600/1715	Avg reward: 7.75	Avg steps: 2417
