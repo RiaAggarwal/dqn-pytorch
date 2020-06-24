@@ -247,12 +247,14 @@ if __name__ == '__main__':
                         help='learning rate (default: 1e-4)')
     parser.add_argument('--network', default='dqn_pong_model',
                         help='choose a network architecture (default: dqn_pong_model)')
-    parser.add_argument('--double', default=False, type=bool,
+    parser.add_argument('--double', default=False, action='store_true',
                         help='whether use double dqn (default: False)')
-    parser.add_argument('--pretrain', default=False, type=bool,
+    parser.add_argument('--pretrain', default=False, action='store_true',
                         help='whether need pretrained network (default: False)')
     parser.add_argument('--render', default=False, type=str,
                         help="'human' or 'png'. Omit if no rendering is desired.")
+    parser.add_argument('--replay', default=100000, type=int,
+            help="change the replay mem size (default: 100000)")
     parser.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
                         help='Probability that the opponent moves in the direction of the ball (default: 0.2)')
     parser.add_argument('--episodes', dest='episodes', default=4000, type=int,
@@ -284,7 +286,7 @@ if __name__ == '__main__':
     RENDER = args.render
     lr = args.lr
     INITIAL_MEMORY = 10000
-    MEMORY_SIZE = 10 * INITIAL_MEMORY
+    MEMORY_SIZE = args.replay
     DOUBLE = args.double
 
     # number episodes between logging and saving

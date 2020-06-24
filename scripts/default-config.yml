@@ -8,8 +8,8 @@ paddle_angle: 45
 learning_rate: 1e-4
 update_prob: 0.2
 episodes: 4000
-resume: False
+#resume:  # comment out to turn off
 #checkpoint: dqn_pong_model
 #history: history.p
 network: dqn_pong_model
-pretrain: False
+#pretrain:  # comment out to turn off
