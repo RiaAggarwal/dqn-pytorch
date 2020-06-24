@@ -4,6 +4,7 @@ import math
 import os
 import pickle
 import random
+import shutil
 import time
 import warnings
 from collections import namedtuple
@@ -11,14 +12,18 @@ from itertools import count
 
 import gym
 import numpy as np
+import sys
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
+sys.path.append(os.path.dirname(__file__))
+
 from memory import ReplayMemory
 from models import *
 from wrappers import *
+from utils import convert_images_to_video
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
@@ -85,7 +90,7 @@ def optimize_model():
     if DOUBLE:
         argmax_a_q_sp = policy_net(non_final_next_states).max(1)[1]
         q_sp = target_net(non_final_next_states).detach()
-        next_state_values[non_final_mask] = q_sp[torch.arange(torch.sum(non_final_mask),device=device), argmax_a_q_sp]
+        next_state_values[non_final_mask] = q_sp[torch.arange(torch.sum(non_final_mask), device=device), argmax_a_q_sp]
     else:
         next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
@@ -116,7 +121,8 @@ def train(env, n_episodes, history, render=False):
             action = select_action(state)
 
             if render:
-                env.render(mode=render, save_dir='videos')
+                save_dir = os.path.join(args.store_dir, 'video')
+                env.render(mode=render, save_dir=save_dir)
 
             obs, reward, done, info = env.step(action)
 
@@ -139,7 +145,7 @@ def train(env, n_episodes, history, render=False):
 
             if done:
                 break
-        
+
         epoch += 1
         history.append((total_reward, t))
         if episode % LOG_INTERVAL == 0:
@@ -151,11 +157,17 @@ def train(env, n_episodes, history, render=False):
             save_checkpoint(args.store_dir)
 
     env.close()
+
+    if render == 'png':
+        convert_images_to_video(image_dir=save_dir, save_dir=os.path.dirname(save_dir))
+        shutil.rmtree(save_dir)
+
     return history
 
 
 def test(env, n_episodes, policy, render=True):
-    env = gym.wrappers.Monitor(env, './videos/' + 'dqn_pong_video', force=True)
+    # todo: look into using the Monitor wrapper
+    save_dir = os.path.join(args.store_dir, 'video')
     for episode in range(n_episodes):
         obs = env.reset()
         state = get_state(obs)
@@ -164,7 +176,7 @@ def test(env, n_episodes, policy, render=True):
             action = policy(state.to(device)).max(1)[1].view(1, 1)
 
             if render:
-                env.render()
+                env.render(mode=render, save_dir=save_dir)
                 time.sleep(0.02)
 
             obs, reward, done, info = env.step(action)
@@ -183,7 +195,9 @@ def test(env, n_episodes, policy, render=True):
                 break
 
     env.close()
-    return
+    if render == 'png':
+        convert_images_to_video(image_dir=save_dir, save_dir=os.path.dirname(save_dir))
+        shutil.rmtree(save_dir)
 
 
 def get_logger(store_dir):
@@ -204,8 +218,9 @@ def get_logger(store_dir):
 def save_checkpoint(store_dir):
     global steps_done
     global epoch
-    torch.save({'Net': policy_net.state_dict(), 'Optimizer': optimizer.state_dict(), 'Steps_Done':steps_done, 'Epoch':epoch },
-               os.path.join(store_dir, 'dqn_pong_model'))
+    torch.save(
+        {'Net': policy_net.state_dict(), 'Optimizer': optimizer.state_dict(), 'Steps_Done': steps_done, 'Epoch': epoch},
+        os.path.join(store_dir, 'dqn_pong_model'))
     pickle.dump(history, open(os.path.join(store_dir, 'history.p'), 'wb'))
 
 
@@ -251,10 +266,12 @@ if __name__ == '__main__':
                         help='whether use double dqn (default: False)')
     parser.add_argument('--pretrain', default=False, action='store_true',
                         help='whether need pretrained network (default: False)')
+    parser.add_argument('--test', default=False, action='store_true',
+                        help='Run the model without training')
     parser.add_argument('--render', default=False, type=str,
                         help="'human' or 'png'. Omit if no rendering is desired.")
     parser.add_argument('--replay', default=10000, type=int,
-            help="change the replay mem size (default: 10000)")
+                        help="change the replay mem size (default: 10000)")
     parser.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
                         help='Probability that the opponent moves in the direction of the ball (default: 0.2)')
     parser.add_argument('--episodes', dest='episodes', default=4000, type=int,
@@ -266,11 +283,10 @@ if __name__ == '__main__':
     parser.add_argument('--history', default='history.p',
                         help='History to load if resuming (default: history.p)')
     parser.add_argument('--store-dir', dest='store_dir',
-                        default=os.path.join('experiments', time.strftime("%Y-%m-%d %H.%M.%S")),
+                        default=os.path.join('..', 'experiments', time.strftime("%Y-%m-%d %H.%M.%S")),
                         help='Path to directory to store experiment results (default: ./experiments/<timestamp>/')
 
     args = parser.parse_args()
-
 
     # create storage directory
     if not os.path.exists(args.store_dir):
@@ -330,12 +346,12 @@ if __name__ == '__main__':
         if isinstance(pretrain, bool):
             policy_net = resnet18(pretrained=pretrain)
             num_ftrs = policy_net.fc.in_features
-            policy_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3,bias=False)
+            policy_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
             policy_net.fc = nn.Linear(num_ftrs, env.action_space.n)
             policy_net = policy_net.to(device)
             target_net = resnet18(pretrained=pretrain)
             num_ftrs = target_net.fc.in_features
-            target_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3,bias=False)
+            target_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
             target_net.fc = nn.Linear(num_ftrs, env.action_space.n)
             target_net = target_net.to(device)
             target_net.load_state_dict(policy_net.state_dict())
@@ -351,7 +367,7 @@ if __name__ == '__main__':
     steps_done = 0
     epoch = 0
 
-    if (resume == True):
+    if resume:
         checkpoint = torch.load(args.checkpoint, map_location=device)
         policy_net.load_state_dict(checkpoint['Net'])
         optimizer.load_state_dict(checkpoint['Optimizer'])
@@ -363,13 +379,11 @@ if __name__ == '__main__':
     else:
         history = []
 
-
     # initialize replay memory
     memory = ReplayMemory(MEMORY_SIZE)
 
-    # train model
-    history = train(env, args.episodes, history, render=RENDER)
-    save_checkpoint(args.store_dir)
-    checkpoint = torch.load(os.path.join(args.store_dir, 'dqn_pong_model'), map_location=device)
-    policy_net.load_state_dict(checkpoint['Net'])
-    # test(env, 1, policy_net, render=RENDER)
+    if args.test:  # test
+        test(env, 1, policy_net, render=RENDER)
+    else:  # train
+        history = train(env, args.episodes, history, render=RENDER)
+        save_checkpoint(args.store_dir)

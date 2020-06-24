@@ -127,11 +127,8 @@ class DynamicPongEnv(gym.Env):
         :param save_dir: Directory to save the images in. It will be created if it does not exist.
         """
         t = time.localtime()
-        timestamp = time.strftime('%b-%d-%Y_%H:%M', t)
-        save_dir = os.path.join(save_dir, timestamp)
-        if save_dir is not None:
-            if not os.path.exists(save_dir):
-                os.makedirs(save_dir)
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
 
         if self.fig is None:
             self.fig = plt.figure()
