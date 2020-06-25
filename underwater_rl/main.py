@@ -37,7 +37,11 @@ def select_action(state):
     global steps_done
     global epoch
     sample = random.random()
-    eps_threshold = EPS_END + (EPS_START - EPS_END) * \
+    if STEPSDECAY:
+        eps_threshold = EPS_END + (EPS_START - EPS_END) * \
+                    math.exp(-1. * steps_done / 1000000)
+    else:
+        eps_threshold = EPS_END + (EPS_START - EPS_END) * \
                     math.exp(-1. * epoch / EPS_DECAY)
 
     steps_done += 1
@@ -274,6 +278,8 @@ if __name__ == '__main__':
                         help="'human' or 'png'. Omit if no rendering is desired.")
     parser.add_argument('--epsdecay', default=1000, type=int,
                         help="epsilon decay (default: 1000)")
+    parser.add_argument('--stepsdecay', default=False, action='store_true',
+                        help="switch to use default step decay")
     parser.add_argument('--replay', default=10000, type=int,
                         help="change the replay mem size (default: 10000)")
     parser.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
@@ -308,6 +314,7 @@ if __name__ == '__main__':
     INITIAL_MEMORY = args.replay
     MEMORY_SIZE = 10 * INITIAL_MEMORY
     DOUBLE = args.double
+    STEPSDECAY = args.stepsdecay
 
     # number episodes between logging and saving
     LOG_INTERVAL = 20
