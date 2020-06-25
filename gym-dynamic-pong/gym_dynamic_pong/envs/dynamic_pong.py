@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from gym import spaces
 
-from gym_dynamic_pong.utils.misc import bool_array_to_rgb
+from gym_dynamic_pong.utils.misc import rgb_array_to_bool
 from gym_dynamic_pong.utils.sprites import *
 
 
@@ -22,6 +22,7 @@ class DynamicPongEnv(gym.Env):
                  default_speed=3,
                  snell_speed=3,
                  snell_change=0,
+                 snell_visible=False,
                  our_paddle_speed=3,
                  their_paddle_speed=3,
                  our_paddle_height=45,
@@ -29,10 +30,12 @@ class DynamicPongEnv(gym.Env):
                  their_update_probability=0.2,
                  our_paddle_angle=math.pi / 4,
                  their_paddle_angle=math.pi / 4,
-                 ball_size=2, ):
+                 ball_size=2,
+                 state_type='color', ):
 
         for v in width, height:
             assert isinstance(v, int), "width and height must be integers"
+        assert state_type in ['color', 'binary'], "state type must be 'color' or 'binary'"
 
         # configuration
         self.max_score = max_score
@@ -41,6 +44,7 @@ class DynamicPongEnv(gym.Env):
         self.default_speed = default_speed
         self.snell_speed = snell_speed
         self.snell_change = snell_change
+        self.snell_visible = snell_visible
         self.our_paddle_speed = our_paddle_speed
         self.their_paddle_speed = their_paddle_speed
         self.our_paddle_height = our_paddle_height
@@ -52,12 +56,18 @@ class DynamicPongEnv(gym.Env):
 
         # initialization
         self._initialize_env()
-        self.frame = None
+
+        self.state_type = state_type
+        self.state = None  # passed to the agent
+
+        # Rendering objects
+        self.rendering = None  # passed to the renderer
         self.fig = None
         self.ax = None
         self.fig_handle = None
         self.frame_count = 0
 
+        # todo: this might be wrong, shape might be HxWx3
         self.observation_space = spaces.Box(low=False, high=True, dtype=np.bool,
                                             shape=(self.env.get_state_size()))
         self.action_space = spaces.Discrete(3)  # initialize discrete action space with 3 actions
@@ -71,8 +81,11 @@ class DynamicPongEnv(gym.Env):
         :return: (data, reward, episode_over, info)
         """
         reward = self.env.step(action)
-        self.frame = self.env.to_numpy()
-        return bool_array_to_rgb(self.frame), reward, self.episode_is_over(), {}  # {} is a generic info dictionary
+        self.state, self.rendering = self.env.to_numpy()
+        if self.state_type == 'binary':
+            self.state = rgb_array_to_bool(self.state)
+            self.rendering = rgb_array_to_bool(self.rendering)
+        return self.state, reward, self.episode_is_over(), {}  # {} is a generic info dictionary
 
     def episode_is_over(self):
         """
@@ -110,17 +123,8 @@ class DynamicPongEnv(gym.Env):
     def get_action_meanings(self):
         return self.env.action_meanings
 
-    # Display
     def _display_screen(self):
-        if self.fig is None:
-            self.fig = plt.figure()
-            self.ax = self.fig.gca()
-            self.fig_handle = self.ax.imshow(self.frame, cmap='gray')
-            self.fig.show()
-        else:
-            self.fig_handle.set_data(self.frame)
-        self.ax.set_title(f"{self.env.their_score}                    {self.env.our_score}")
-        self.fig.canvas.draw()
+        self._update_figure(show=True)
 
     def _save_display_images(self, save_dir):
         """
@@ -134,18 +138,23 @@ class DynamicPongEnv(gym.Env):
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
 
-        if self.fig is None:
-            self.fig = plt.figure()
-            self.ax = self.fig.gca()
-            self.fig_handle = self.ax.imshow(self.frame, cmap='gray')
-        else:
-            self.fig_handle.set_data(self.frame)
-        self.ax.set_title(f"{self.env.their_score}                    {self.env.our_score}")
-        self.fig.canvas.draw()
+        self._update_figure(show=False)
 
         path = os.path.join(save_dir, f'{self.frame_count:d}.png')
         self.frame_count += 1
         self.fig.savefig(path)
+
+    def _update_figure(self, show):
+        if self.fig is None:
+            self.fig = plt.figure()
+            self.ax = self.fig.gca()
+            self.fig_handle = self.ax.imshow(self.rendering, cmap='gray')
+            if show:
+                self.fig.show()
+        else:
+            self.fig_handle.set_data(self.rendering)
+        self.ax.set_title(f"{self.env.their_score}                    {self.env.our_score}")
+        self.fig.canvas.draw()
 
     # Sprites
     def _initialize_env(self):

@@ -1,9 +1,10 @@
 import math
-import random
-from typing import Tuple, Union, Dict
 from abc import ABC, abstractmethod
+from typing import List, Tuple, Union, Dict
 
 import numpy as np
+
+VISIBILITY_OPTS = ['render', 'machine', False]
 
 
 class Point:
@@ -236,6 +237,27 @@ class Line:
 
 
 class Shape(ABC):
+    def __init__(self, visibility: Union[bool, str], render_value: Union[float, Tuple, List, np.ndarray]):
+        """
+        Abstract class for shapes
+
+        :param visibility: 'render' if the only visibility should be to the renderer, 'machine' if it should be visible
+        to the agent and to the renderer.
+        :param render_value: value to use when rendering the object in Numpy. If a single value, interpret as the same
+        value for all colors. Otherwise, it must be a list, tuple, or numpy array of length 3.
+        """
+        if isinstance(render_value, (float, int)):
+            render_value = np.array([render_value] * 3)
+        if isinstance(render_value, (list, tuple)):
+            render_value = np.array(render_value)
+        assert render_value.shape == (3, ), "If not passing a single number, render_value must be of length 3."
+        for rv in render_value:
+            assert 0 <= rv <= 1, "render_value must be between 0 and 1"
+        assert visibility in VISIBILITY_OPTS, f"visibility {visibility} is not in {VISIBILITY_OPTS}"
+
+        self.visibility = visibility
+        self.render_value = render_value
+
     @abstractmethod
     def get_intersection(self, line: Line) -> Union[Tuple[Line, Point], None]:
         raise NotImplementedError()
@@ -262,15 +284,40 @@ class Shape(ABC):
     def is_in(self, point: Point) -> bool:
         raise NotImplementedError()
 
+    def to_numpy(self, height: int, width: int) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Renders the rectangle object on the canvas given by `height` and `width`
+
+        :param height: canvas height
+        :param width: canvas width
+        :return: (state array, rendering array)
+        """
+        if self.visibility == 'machine':  # machine and renderer see the state
+            state = self._to_numpy(height, width)
+            return state, state
+        elif self.visibility == 'render':  # only renderer sees the state
+            return self._zero_rgb_image(height, width), self._to_numpy(height, width)
+        else:  # neither see the state
+            zeros = self._zero_rgb_image(height, width)
+            return zeros, zeros
+
     @abstractmethod
-    def to_numpy(self, height: int, width: int) -> np.ndarray:
+    def _to_numpy(self, height, width):
         raise NotImplementedError()
+
+    @staticmethod
+    def _zero_rgb_image(height, width):
+        return np.zeros((height, width, 3), dtype=np.float16)
 
 
 class Circle(Shape):
-    def __init__(self, center: Point, radius: float):
+    def __init__(self, center: Point, radius: float, **kwargs):
+        super().__init__(**kwargs)
         self.center = center
         self.radius = radius
+
+    def _to_numpy(self, height, width):
+        raise NotImplementedError()
 
     @property
     def pos(self):
@@ -283,9 +330,6 @@ class Circle(Shape):
         raise NotImplementedError()
 
     def is_in(self, point: Point) -> bool:
-        raise NotImplementedError()
-
-    def to_numpy(self, height: int, width: int) -> np.ndarray:
         raise NotImplementedError()
 
     def _get_intersection_point(self, line: Line) -> Union[Point, None]:
@@ -364,12 +408,15 @@ class Rectangle(Shape):
         :param max_height: the canvas height
         :param height: the height of the rectangle
         :param width: the width of the rectangle
+        :param kwargs: Parameters to pass to superclass. See `Shape`.
         """
-        self.x = 0
-        self.y = 0
-
         self.height = kwargs.pop('height')
         self.width = kwargs.pop('width')
+
+        super().__init__(**kwargs)
+
+        self.x = 0
+        self.y = 0
 
     def get_intersection(self, line: Line) -> Union[Tuple[Line, Point], None]:
         """
@@ -461,30 +508,28 @@ class Rectangle(Shape):
         else:
             return False
 
-    def to_numpy(self, height: int, width: int) -> np.ndarray:
+    def _to_numpy(self, height, width) -> np.ndarray:
         """
-        Renders the rectangle object on the canvas given by `height` and `width`
+        render a rectangle with values `value` in a height by width array
 
-        :param height: canvas height
-        :param width: canvas width
-        :return: canvas as numpy array
+        :param height: rows in the array
+        :param width: columns in the array
+        :return: `numpy` array
         """
         assert isinstance(height, int), f"height must be type int, not type {type(height)}"
         assert isinstance(width, int), f"width must be type int, not type {type(width)}"
-        out = np.zeros((height, width), dtype=np.bool)
-
-        top = int(round(height - self.top_bound))
+        out = self._zero_rgb_image(height, width)
+        top = round(height - self.top_bound)
         if top < 0:
             top = 0
-        bottom = int(round(height - self.bot_bound))
+        bottom = round(height - self.bot_bound)
         if bottom > height:
             bottom = height
-        left = int(round(self.left_bound))
+        left = round(self.left_bound)
         if left < 0:
             left = 0
-        right = int(round(self.right_bound))
+        right = round(self.right_bound)
         if right > width:
             right = width
-
-        out[top:bottom + 1, left:right + 1] = True
+        out[top:bottom + 1, left:right + 1, :] = self.render_value
         return out

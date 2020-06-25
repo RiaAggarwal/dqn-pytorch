@@ -263,6 +263,9 @@ if __name__ == '__main__':
                         help='snell speed (default: 3.0)')
     parser.add_argument('--snell-change', dest='snell_change', default=0, type=float,
                         help='Standard deviation of the speed change per step (default: 0)')
+    parser.add_argument('--snell-visible', dest='snell_visible', default=False, type=str, choices=['render', 'machine'],
+                        help="Determine whether snell is visible to when rendering ('render') or to the agent and when"
+                             "rendering ('machine')")
     parser.add_argument('--ps', '--paddle-speed', default=3.0, type=float,
                         help='paddle speed (default: 3.0)')
     parser.add_argument('--pa', '--paddle-angle', default=45, type=float,
@@ -270,6 +273,8 @@ if __name__ == '__main__':
     parser.add_argument('--pl', '--paddle-length', default=45, type=int,
                         help='paddle length (default: 45)')
     parser.add_argument('--lr', '--learning-rate', default=1e-4, type=float,
+                        help='learning rate (default: 1e-4)')
+    parser.add_argument('--state', default='binary', type=str, choices=['binary', 'color'],
                         help='learning rate (default: 1e-4)')
     parser.add_argument('--network', default='dqn_pong_model',
                         help='choose a network architecture (default: dqn_pong_model)')
@@ -279,8 +284,8 @@ if __name__ == '__main__':
                         help='whether need pretrained network (default: False)')
     parser.add_argument('--test', default=False, action='store_true',
                         help='Run the model without training')
-    parser.add_argument('--render', default=False, type=str,
-                        help="'human' or 'png'. Omit if no rendering is desired.")
+    parser.add_argument('--render', default=False, type=str, choices=['human', 'png'],
+                        help="Rendering mode. Omit if no rendering is desired.")
     parser.add_argument('--epsdecay', default=1000, type=int,
                         help="epsilon decay (default: 1000)")
     parser.add_argument('--stepsdecay', default=False, action='store_true',
@@ -341,6 +346,7 @@ if __name__ == '__main__':
         default_speed=args.ball,
         snell_speed=args.snell,
         snell_change=args.snell_change,
+        snell_visible=args.snell_visible,
         our_paddle_speed=args.ps,
         their_paddle_speed=args.ps,
         our_paddle_height=args.pl,
@@ -349,6 +355,7 @@ if __name__ == '__main__':
         their_paddle_angle=math.radians(args.pa),
         their_update_probability=args.update_prob,
         ball_size=args.ball_size,
+        state_type=args.state,
     )
     # TODO: consider removing some of the wrappers - may improve performance
     env = make_env(env, episodic_life=True, clip_rewards=True)

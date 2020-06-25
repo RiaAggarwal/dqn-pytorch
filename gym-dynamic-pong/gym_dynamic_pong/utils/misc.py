@@ -12,3 +12,13 @@ def bool_array_to_rgb(array: np.ndarray) -> np.ndarray:
     array = array.astype(np.uint8) * (2 ** 8 - 1)
     empty = np.zeros_like(array)
     return np.stack([array, empty, empty], axis=2)
+
+
+def rgb_array_to_bool(array: np.ndarray) -> np.ndarray:
+    """
+    Simply threshold zero values to False and non-zero values to True
+
+    :param array: numpy array
+    :return: boolean numpy array
+    """
+    return array.astype(np.bool)
