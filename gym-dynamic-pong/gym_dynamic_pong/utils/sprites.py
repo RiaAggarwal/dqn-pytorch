@@ -1,5 +1,6 @@
 import math
 import random
+from scipy import stats
 from typing import Union, Tuple, List
 
 import numpy as np
@@ -118,13 +119,38 @@ class Ball(Rectangle):
 
 
 class Snell(Rectangle):
-    def __init__(self, width, height, speed):
+    def __init__(self, width, height, speed, change_rate=0):
         """
-        area indicating ball speed.
-        :return:
+        Rectangular area with a different ball speed.
+
+        :param width: The width of the layer
+        :param height: The height of the layer
+        :param change_rate: Rate at which the ball speed changes, the standard deviation of the change on each step.
         """
+        assert change_rate >= 0, "Snell `change_rate` must be non-negative"
+
         super().__init__(width=width, height=height)
         self.speed = speed
+        self._initial_speed = speed
+        self.change_rate = change_rate
+
+    def step(self):
+        """
+        Step the Snell speed using a bounded Gaussian random walk.
+
+        - step with mean 0, standard deviation `self.speed`
+        - Clip the speed at `0.5 * self._initial_speed <= self.speed <= 2.0 * self._initial_speed`
+        """
+        if self.change_rate != 0:
+            self.speed += stats.norm(loc=0, scale=self.change_rate).rvs()
+
+            if self.speed < 0.5 * self._initial_speed:
+                self.speed = 0.5 * self._initial_speed
+            if self.speed > 2.0 * self._initial_speed:
+                self.speed = 2.0 * self._initial_speed
+        else:
+            pass
+
 
 
 class Canvas(Rectangle):
@@ -208,13 +234,21 @@ class Canvas(Rectangle):
     def step(self, action):
         self._move_our_paddle(action)
         self._step_their_paddle()
-        return self._step_ball()
+        reward = self._step_ball()
+        self._step_snell()
+        return reward
 
     def get_state_size(self) -> Tuple[int, int]:
         """
         Return the tuple (height, width) of the canvas dimensions
         """
         return self.height, self.width
+
+    def _step_snell(self) -> None:
+        """
+        Step the snell layer
+        """
+        self.snell.step()
 
     def _reset_ball(self):
         self.ball.reset((self.width / 2, self.height / 2))

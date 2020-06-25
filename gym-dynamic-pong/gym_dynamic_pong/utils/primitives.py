@@ -473,16 +473,16 @@ class Rectangle(Shape):
         assert isinstance(width, int), f"width must be type int, not type {type(width)}"
         out = np.zeros((height, width), dtype=np.bool)
 
-        top = height - round(self.top_bound)
+        top = int(round(height - self.top_bound))
         if top < 0:
             top = 0
-        bottom = height - round(self.bot_bound)
+        bottom = int(round(height - self.bot_bound))
         if bottom > height:
             bottom = height
-        left = round(self.left_bound)
+        left = int(round(self.left_bound))
         if left < 0:
             left = 0
-        right = round(self.right_bound)
+        right = int(round(self.right_bound))
         if right > width:
             right = width
 
