@@ -21,6 +21,7 @@ class DynamicPongEnv(gym.Env):
                  height=300,
                  default_speed=3,
                  snell_speed=3,
+                 snell_change=0,
                  our_paddle_speed=3,
                  their_paddle_speed=3,
                  our_paddle_height=45,
@@ -39,6 +40,7 @@ class DynamicPongEnv(gym.Env):
         self.height = height
         self.default_speed = default_speed
         self.snell_speed = snell_speed
+        self.snell_change = snell_change
         self.our_paddle_speed = our_paddle_speed
         self.their_paddle_speed = their_paddle_speed
         self.our_paddle_height = our_paddle_height
@@ -154,20 +156,20 @@ class DynamicPongEnv(gym.Env):
             self._init_paddle('left', self.their_paddle_height, self.their_paddle_speed, self.their_paddle_angle),
             self._init_paddle('right', self.our_paddle_height, self.our_paddle_speed, self.our_paddle_angle),
             self._init_ball(self.ball_size),
-            self._init_snell(),
+            self._init_snell(self.snell_speed, self.snell_change),
             self.default_speed,
             self.height,
             self.width,
             self.their_update_probability,
         )
 
-    def _init_snell(self):
+    def _init_snell(self, speed: float, change_rate: float):
         # Add one to height so that the boundary does not match the border
-        snell = Snell(0.25 * self.width, self.height + 1, self.snell_speed)
+        snell = Snell(0.25 * self.width, self.height + 1, speed, change_rate)
         snell.pos = self.width / 2, self.height / 2
         return snell
 
-    def _init_paddle(self, which_side: str, height: float, speed:float, angle:float) -> Paddle:
+    def _init_paddle(self, which_side: str, height: float, speed: float, angle: float) -> Paddle:
         """
         Create a paddle object
         Todo max_angle

@@ -43,6 +43,7 @@ class TestEnvironmentBehavior(unittest.TestCase):
         self.height = 300
         self.default_speed = 10
         self.snell_speed = 10
+        self.snell_change = 0
         self.paddle_speed = 3
         self.their_paddle_height = 45
         self.our_paddle_height = 45
@@ -54,6 +55,7 @@ class TestEnvironmentBehavior(unittest.TestCase):
                                   height=self.height,
                                   default_speed=self.default_speed,
                                   snell_speed=self.snell_speed,
+                                  snell_change=self.snell_change,
                                   our_paddle_speed=self.paddle_speed,
                                   their_paddle_speed=self.paddle_speed,
                                   our_paddle_height=self.our_paddle_height,
@@ -237,6 +239,22 @@ class TestEnvironmentBehaviorWithRefraction(TestEnvironmentBehavior):
         self.snell_speed = 5  # critical angle: pi/6
         self.create_env()
 
+    def test_snell_speed_changes_when_snell_change_set(self):
+        self.snell_change = 1
+        self.create_env()
+        self.env.step(0)
+        self.assertNotEqual(self.snell_speed, self.env.env.snell.speed)
+
+    def test_snell_speed_does_not_change_when_snell_change_not_set(self):
+        self.env.step(0)
+        self.assertEqual(self.snell_speed, self.env.env.snell.speed)
+
+    def test_ball_does_not_get_stuck_in_5000_steps_with_very_slow_snell_layer(self):
+        self.default_speed = 10
+        self.snell_speed = 2
+        self.create_env()
+        self.plausible_ball_motion_tester(5000, render=False)
+
     """
     Put the ball at the boundary of the snell layer and test that it refracts at the expected angle.
         case1: leaving snell to the right at positive angle
@@ -248,12 +266,6 @@ class TestEnvironmentBehaviorWithRefraction(TestEnvironmentBehavior):
         case7: entering snell to the right at positive angle
         case8: entering snell to the right at negative angle
     """
-    def test_ball_does_not_get_stuck_in_5000_steps_with_very_slow_snell_layer(self):
-        self.default_speed = 10
-        self.snell_speed = 2
-        self.create_env()
-        self.plausible_ball_motion_tester(5000, render=False)
-
     def test_ball_leaving_snell_at_pi_12_refracts_to_0p544(self):
         self.env.env.ball.angle = math.pi / 12
         self.env.env.ball.x = self.env.env.snell.right_bound - self.env.default_speed / 10
