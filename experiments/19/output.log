@@ -184,3 +184,7 @@
 2020-06-24 20:55:51,073	INFO	Total steps: 1763123	Episode: 1780/1561	Avg reward: 10.10	Avg steps: 1691
 2020-06-24 21:18:50,189	INFO	Total steps: 1800634	Episode: 1800/1834	Avg reward: 9.15	Avg steps: 1874
 2020-06-24 21:42:24,904	INFO	Total steps: 1838967	Episode: 1820/1743	Avg reward: 10.20	Avg steps: 1915
+2020-06-24 22:06:03,868	INFO	Total steps: 1877390	Episode: 1840/1960	Avg reward: 8.40	Avg steps: 1920
+2020-06-24 22:27:55,220	INFO	Total steps: 1912886	Episode: 1860/1619	Avg reward: 10.00	Avg steps: 1773
+2020-06-24 22:51:19,853	INFO	Total steps: 1950989	Episode: 1880/1913	Avg reward: 9.40	Avg steps: 1904
+2020-06-24 23:14:29,126	INFO	Total steps: 1988708	Episode: 1900/1805	Avg reward: 8.75	Avg steps: 1884
