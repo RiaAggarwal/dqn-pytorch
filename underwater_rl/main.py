@@ -39,7 +39,7 @@ def select_action(state):
     sample = random.random()
     eps_threshold = EPS_END + (EPS_START - EPS_END) * \
                     math.exp(-1. * epoch / EPS_DECAY)
-    print(eps_threshold)
+
     steps_done += 1
     if sample > eps_threshold:
         with torch.no_grad():
@@ -272,8 +272,8 @@ if __name__ == '__main__':
                         help='Run the model without training')
     parser.add_argument('--render', default=False, type=str,
                         help="'human' or 'png'. Omit if no rendering is desired.")
-    parser.add_argument('--eps_decay', default=2000, type=int,
-                        help="epsilon decay (default: 2000)")
+    parser.add_argument('--epsdecay', default=1000, type=int,
+                        help="epsilon decay (default: 1000)")
     parser.add_argument('--replay', default=10000, type=int,
                         help="change the replay mem size (default: 10000)")
     parser.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
@@ -301,7 +301,7 @@ if __name__ == '__main__':
     GAMMA = 0.99
     EPS_START = 1
     EPS_END = 0.02
-    EPS_DECAY = args.eps_decay
+    EPS_DECAY = args.epsdecay
     TARGET_UPDATE = 1000
     RENDER = args.render
     lr = args.lr

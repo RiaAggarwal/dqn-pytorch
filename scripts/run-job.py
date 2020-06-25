@@ -51,8 +51,8 @@ if __name__ == '__main__':
     parser.add_argument('-g', '--gpu', type=int, default=1, help="GPU request (default: 1)")
     parser.add_argument('-m', '--memory', type=int, default=6, help="Memory request (default: 6)")
     parser.add_argument('-b', '--branch', default='master', type=str, help="Branch to run (default: master)")
-    parser.add_argument('-f', '--file', default='default-config.yml', nargs='+', type=str,
-                        help="Config file (default: default-config.yml)")
+    parser.add_argument('-f', '--file', default=os.path.join('configs', 'default.yml'), nargs='+', type=str,
+                        help="Config file (default: default.yml)")
     parser.add_argument('-p', '--preview', action='store_true', help="Preview the created job file without running it")
     args = parser.parse_args()
 
@@ -80,7 +80,7 @@ if __name__ == '__main__':
             commands.append(f'python main.py {opts}')
         cmd = '; '.join(commands[:-len(args.name)]) + '; ' + ' & '.join(commands[-len(args.name):])
         # Add a process to keep the pod alive while the background jobs are running
-        cmd += ' & while [ -n "$(jobs | grep Running)" ]; do sleep 10; done;'
+        cmd += ' & wait < <(jobs -p);'
     else:
         cmd = cmd_template.format(user=args.user, branch=args.branch, options=experiments_options[0])
 
