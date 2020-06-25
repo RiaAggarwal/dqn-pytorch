@@ -27,7 +27,8 @@ class DynamicPongEnv(gym.Env):
                  their_paddle_height=45,
                  their_update_probability=0.2,
                  our_paddle_angle=math.pi / 4,
-                 their_paddle_angle=math.pi / 4, ):
+                 their_paddle_angle=math.pi / 4,
+                 ball_size=2, ):
 
         for v in width, height:
             assert isinstance(v, int), "width and height must be integers"
@@ -45,6 +46,7 @@ class DynamicPongEnv(gym.Env):
         self.our_paddle_angle = our_paddle_angle
         self.their_paddle_angle = their_paddle_angle
         self.their_update_probability = their_update_probability
+        self.ball_size = ball_size
 
         # initialization
         self._initialize_env()
@@ -151,13 +153,12 @@ class DynamicPongEnv(gym.Env):
         self.env = Canvas(
             self._init_paddle('left', self.their_paddle_height, self.their_paddle_speed, self.their_paddle_angle),
             self._init_paddle('right', self.our_paddle_height, self.our_paddle_speed, self.our_paddle_angle),
-            self._init_ball(),
+            self._init_ball(self.ball_size),
             self._init_snell(),
             self.default_speed,
             self.height,
             self.width,
             self.their_update_probability,
-            self.our_paddle_angle,
         )
 
     def _init_snell(self):
@@ -184,7 +185,7 @@ class DynamicPongEnv(gym.Env):
             paddle.x = self.width - paddle.width / 2
         return paddle
 
-    def _init_ball(self) -> Ball:
+    def _init_ball(self, ball_size: float) -> Ball:
         """
         Create a ball object
         """
@@ -193,7 +194,7 @@ class DynamicPongEnv(gym.Env):
         if critical_angle is not None:
             if critical_angle < max_initial_angle:
                 max_initial_angle = 0.99 * critical_angle
-        ball = Ball(max_initial_angle=max_initial_angle)
+        ball = Ball(size=ball_size, max_initial_angle=max_initial_angle)
         ball.pos = (self.width / 2, self.height / 2)
         return ball
 

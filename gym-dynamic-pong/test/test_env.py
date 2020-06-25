@@ -252,7 +252,7 @@ class TestEnvironmentBehaviorWithRefraction(TestEnvironmentBehavior):
         self.default_speed = 10
         self.snell_speed = 2
         self.create_env()
-        self.plausible_ball_motion_tester(5000, render=True)
+        self.plausible_ball_motion_tester(5000, render=False)
 
     def test_ball_leaving_snell_at_pi_12_refracts_to_0p544(self):
         self.env.env.ball.angle = math.pi / 12

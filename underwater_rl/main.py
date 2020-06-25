@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse
 import logging
 import math
@@ -256,6 +257,8 @@ if __name__ == '__main__':
                         help='canvas height (default: 160)')
     parser.add_argument('--ball', default=3.0, type=float,
                         help='ball speed (default: 3.0)')
+    parser.add_argument('--ball-size', dest='ball_size', default=2.0, type=float,
+                        help='ball size (default: 2.0)')
     parser.add_argument('--snell', default=3.0, type=float,
                         help='snell speed (default: 3.0)')
     parser.add_argument('--ps', '--paddle-speed', default=3.0, type=float,
@@ -342,6 +345,7 @@ if __name__ == '__main__':
         our_paddle_angle=math.radians(args.pa),
         their_paddle_angle=math.radians(args.pa),
         their_update_probability=args.update_prob,
+        ball_size=args.ball_size,
     )
     # TODO: consider removing some of the wrappers - may improve performance
     env = make_env(env, episodic_life=True, clip_rewards=True)

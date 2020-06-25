@@ -73,8 +73,8 @@ class Paddle(Rectangle):
 
 
 class Ball(Rectangle):
-    def __init__(self, max_initial_angle):
-        super().__init__(width=2, height=2)
+    def __init__(self, size, max_initial_angle):
+        super().__init__(width=size, height=size)
         self.max_initial_angle = max_initial_angle
         self.reset(self.pos, direction='left')
 
@@ -134,7 +134,7 @@ class Canvas(Rectangle):
     actions = {k: v for v, k in action_meanings.items()}
 
     def __init__(self, paddle_l: Paddle, paddle_r: Paddle, ball: Ball, snell: Snell, ball_speed: int, height: int,
-                 width: int, their_update_probability: float, paddle_angle: float, **kwargs):
+                 width: int, their_update_probability: float, **kwargs):
 
         super().__init__(height=height, width=width, **kwargs)
         self.pos = self.width / 2, self.height / 2
