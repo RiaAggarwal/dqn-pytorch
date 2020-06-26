@@ -170,7 +170,7 @@ class Canvas(Rectangle):
     def __init__(self, paddle_l: Paddle, paddle_r: Paddle, ball: Ball, snell: Snell, ball_speed: int, height: int,
                  width: int, their_update_probability: float):
 
-        super().__init__(height=height, width=width, visibility=False, render_value=0)
+        super().__init__(height=height, width=width, visibility='none', render_value=0)
         self.pos = self.width / 2, self.height / 2
 
         assert isinstance(their_update_probability, (float, int)), \
