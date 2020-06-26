@@ -1,0 +1,2 @@
+2020-06-25 14:12:31,727	INFO	--width 320 --height 160 --ball 1.0 --ball-size 2.0 --snell 1.0 --snell-change 0.1 --ps 1.0 --paddle-speed 1.0 --pa 85.0 --paddle-angle 85.0 --pl 45 --paddle-length 45 --lr 0.0001 --learning-rate 0.0001 --network dqn_pong_model --render human --epsdecay 1000 --replay 10000 --update-prob 0.2 --episodes 2 --checkpoint dqn_pong_model --history history.p --store-dir ../experiments/2020-06-25 14.12.31 
+2020-06-25 14:12:31,727	INFO	Device: cpu

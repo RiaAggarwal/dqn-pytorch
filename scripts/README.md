@@ -54,7 +54,7 @@ network: dqn_pong_model
 ```
 
 Preview the command using the `--preview` switch, e.g.:
-```shell script
+```yaml
 ~/pong-underwater-rl/scripts$ ./run-job.sh --user username --name experiment-name --file my-experiment.yml --preview
 
 apiVersion: batch/v1
@@ -114,12 +114,31 @@ To run multiple experiments, pass multiple arguments to `file` and `name`
 ### Docs
 
 Required options:
-- `--user` This must correspond exactly to the name of the directory `/data/<user>` in the kubernetes cluster. 
-The directory must already contain a clone of the git repository.
-- `--name` The name of the experiment(s) to run. In the cluster, results will be saved under 
-`/data/<user>/pong-underwater-rl/experiments/<name>`
+
+`--user`
+- This must correspond exactly to the name of the directory `/data/<user>` in the kubernetes cluster. 
+- The directory must already contain a clone of the git repository.
+
+`--name`
+- The name of the experiment(s) to run.
+- In the cluster, results will be saved under `/data/<user>/pong-underwater-rl/experiments/<name>`
 
 Other options:
-- `--branch` The git branch to use. The code is automatically updated with the latest from `master` or the specified branch.
-- `--file` The configuration file(s) containing options to pass to `main.py`. The script must be updated with any new  options.
-- `--preview` The job is run by automatically generating a yaml file from the template `job.yml`. With this switch the final yaml used to generate the job will be printed to console without a job being run.
+
+`--branch`
+- The git branch to use.
+- The code is automatically updated with the latest from `master` or the specified branch.
+
+`--file`
+- The configuration file(s) containing options to pass to `main.py`
+- The name number of arguments must be passed to this as `--name`
+- The script must be updated with any new  options.
+
+`--preview`
+- The job is run by automatically generating a yaml file from the template `job.yml`
+- With this switch the final yaml used to generate the job will be printed to console without a job being run.
+
+`--ephemeral`
+- Uses ephemeral storage rather than Ceph
+- based on the template `no-storage-job.yml`
+- because storage is ephemeral, requires git credentials to push results

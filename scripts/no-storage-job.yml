@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ${job_name} # specify your job name here
+spec:
+  template:
+    spec:
+      containers:
+      - name: gpu-container
+        image: gitlab-registry.nautilus.optiputer.net/jiacheng/docker-images:gym
+        command: ["/bin/bash","-c"]
+        args:
+        - "mkdir /ephemeral/${user};
+          cd /data/${user};
+          git clone https://github.com/Ian-Mint/pong-underwater-rl.git --branch ${branch};
+          cd pong-underwater-rl;
+          git checkout -b ${job_name};
+          pip install -e gym-dynamic-pong;
+          cd underwater_rl;
+          python main.py ${options};
+          git config --global user.name ${user};
+          git config --global user.email ${git_email};
+          git add --all;
+          git commit -m \"ex: ${job_name}\";
+          https://${git_user}:{git_password}@github.com/Ian-Mint/pong-underwater-rl.git;"
+        volumeMounts:
+        - mountPath: /ephemeral
+          name: ephemeral
+        - mountPath: /dev/shm
+          name: dshm
+        resources:
+          limits:
+            memory: 8Gi
+            nvidia.com/gpu: "1"
+            cpu: "2"
+            ephemeral-storage: 20Gi
+          requests:
+            memory: 6Gi
+            nvidia.com/gpu: "1"
+            cpu: "1"
+            ephemeral-storage: 20Gi
+      restartPolicy: Never
+      volumes:
+        - name: ephemeral
+          emptyDir: {}
+        - name: dshm
+          emptyDir:
+            medium: Memory
+  backoffLimit: 1
