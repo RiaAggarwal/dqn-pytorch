@@ -39,7 +39,7 @@ class Paddle(Rectangle):
         :param visibility: Whether and how to render the paddle. See `Shape.visibility`
         :param max_angle: The maximum angle at which the paddle can hit the ball
         """
-        super().__init__(height=height, width=width, visibility=visibility)
+        super().__init__(height=height, width=width, visibility=visibility, render_value=255)
         assert side in ['left', 'right'], f"side must be 'left' or 'right', not {side}"
         assert 0 <= max_angle <= math.pi / 2, f"max angle must be between 0 and pi/2, not {max_angle}"
         self.side = side
@@ -83,7 +83,7 @@ class Ball(Rectangle):
         :param max_initial_angle: The maximum angle the ball can start with
         :param visibility: How to render the ball. See `Shape.visibility`
         """
-        super().__init__(width=size, height=size, visibility=visibility)
+        super().__init__(width=size, height=size, visibility=visibility, render_value=255)
         self.max_initial_angle = max_initial_angle
         self.reset(self.pos, direction='left')
 
@@ -138,7 +138,7 @@ class Snell(Rectangle):
         """
         assert change_rate >= 0, "Snell `change_rate` must be non-negative"
 
-        super().__init__(width=width, height=height, visibility=visibility)
+        super().__init__(width=width, height=height, visibility=visibility, render_value=(235, 76, 52))
         self.speed = speed
         self._initial_speed = speed
         self.change_rate = change_rate
@@ -168,9 +168,9 @@ class Canvas(Rectangle):
     actions = {k: v for v, k in action_meanings.items()}
 
     def __init__(self, paddle_l: Paddle, paddle_r: Paddle, ball: Ball, snell: Snell, ball_speed: int, height: int,
-                 width: int, their_update_probability: float, **kwargs):
+                 width: int, their_update_probability: float):
 
-        super().__init__(height=height, width=width, **kwargs)
+        super().__init__(height=height, width=width, visibility=False, render_value=0)
         self.pos = self.width / 2, self.height / 2
 
         assert isinstance(their_update_probability, (float, int)), \
@@ -197,7 +197,7 @@ class Canvas(Rectangle):
     def register_sprite(self, sprite: Shape):
         assert issubclass(type(sprite), Shape), f"sprite must be subclassed from Shape"
         # noinspection PyTypeChecker
-        self.sprites.append(sprite)
+        self.sprites.insert(-1, sprite)  # insert before ball
 
     @property
     def left_bound(self):
@@ -226,10 +226,10 @@ class Canvas(Rectangle):
         state = self._zero_rgb_image(round(self.height), round(self.width))
         rendering = self._zero_rgb_image(round(self.height), round(self.width))
 
-        for sprite in self.sprites:
+        for sprite in self.sprites[1:]:  # skip self
             sprite_state, sprite_rendering = sprite.to_numpy(self.height, self.width)
-            state[sprite_state != 0] = sprite_state
-            rendering[sprite_rendering != 0] = sprite_rendering
+            state[sprite_state != 0] = sprite_state[sprite_state != 0]
+            rendering[sprite_rendering != 0] = sprite_rendering[sprite_rendering != 0]
         return state, rendering
 
     def score(self, who):
@@ -483,7 +483,7 @@ class Canvas(Rectangle):
         """
         result = None
 
-        for o in self.sprites:
+        for o in self.sprites[:-1]:  # Exclude ball
             intersection_result = o.get_intersection(trajectory)
             if intersection_result is not None:
                 edge, intersection = intersection_result

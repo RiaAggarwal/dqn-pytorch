@@ -134,7 +134,6 @@ class DynamicPongEnv(gym.Env):
 
         :param save_dir: Directory to save the images in. It will be created if it does not exist.
         """
-        t = time.localtime()
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
 
@@ -174,7 +173,7 @@ class DynamicPongEnv(gym.Env):
 
     def _init_snell(self, speed: float, change_rate: float):
         # Add one to height so that the boundary does not match the border
-        snell = Snell(0.25 * self.width, self.height + 1, speed, change_rate)
+        snell = Snell(0.25 * self.width, self.height + 1, speed, change_rate, visibility=self.snell_visible)
         snell.pos = self.width / 2, self.height / 2
         return snell
 
@@ -188,7 +187,7 @@ class DynamicPongEnv(gym.Env):
         :param height: the height of the paddle
         """
         assert which_side in ['left', 'right'], f"side must be 'left' or 'right', not {which_side}"
-        paddle = Paddle(height, int(0.02 * self.width) + 1, speed, which_side, angle)
+        paddle = Paddle(height, int(0.02 * self.width) + 1, speed, which_side, angle, visibility='machine')
         paddle.y = self.height / 2
         if which_side == 'left':
             paddle.x = paddle.width / 2
@@ -205,7 +204,7 @@ class DynamicPongEnv(gym.Env):
         if critical_angle is not None:
             if critical_angle < max_initial_angle:
                 max_initial_angle = 0.99 * critical_angle
-        ball = Ball(size=ball_size, max_initial_angle=max_initial_angle)
+        ball = Ball(size=ball_size, max_initial_angle=max_initial_angle, visibility='machine')
         ball.pos = (self.width / 2, self.height / 2)
         return ball
 

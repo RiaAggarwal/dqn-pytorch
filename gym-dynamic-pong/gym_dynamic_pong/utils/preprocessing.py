@@ -26,5 +26,5 @@ def rgb_array_to_binary(array: np.ndarray) -> np.ndarray:
     assert array.shape[2] == 3, "The third dimension must be of size 3"
 
     array[array != 0] = 2**8 - 1
-    array = array[:, :, 0] | array[:, :, 1] | array[:, :, 2]
+    array[:, :, :] = (array[:, :, 0] | array[:, :, 1] | array[:, :, 2])[:, :, None]
     return array.astype(np.uint8)

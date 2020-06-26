@@ -4,7 +4,7 @@ from typing import List, Tuple, Union, Dict
 
 import numpy as np
 
-VISIBILITY_OPTS = ['render', 'machine', False]
+VISIBILITY_OPTS = ['human', 'machine', False]
 
 
 class Point:
@@ -237,7 +237,8 @@ class Line:
 
 
 class Shape(ABC):
-    def __init__(self, visibility: Union[bool, str], render_value: Union[float, Tuple, List, np.ndarray]):
+    def __init__(self, render_value: Union[float, Tuple, List, np.ndarray] = 255,
+                 visibility: Union[bool, str] = 'machine'):
         """
         Abstract class for shapes
 
@@ -249,7 +250,7 @@ class Shape(ABC):
         if isinstance(render_value, (float, int)):
             render_value = np.array([render_value] * 3, dtype=np.uint8)
         for rv in render_value:
-            assert isinstance(rv, int), "render_value must be an integer"
+            assert isinstance(rv, (int, np.uint8)), f"render_value must be an integer, not {type(rv)} - {rv}"
             assert 0 <= rv <= 2**8 - 1, "render_value must be between 0 and 255"
         if isinstance(render_value, (list, tuple)):
             render_value = np.array(render_value, dtype=np.uint8)
@@ -296,11 +297,13 @@ class Shape(ABC):
         if self.visibility == 'machine':  # machine and renderer see the state
             state = self._to_numpy(height, width)
             return state, state
-        elif self.visibility == 'render':  # only renderer sees the state
+        elif self.visibility == 'human':  # only renderer sees the state
             return self._zero_rgb_image(height, width), self._to_numpy(height, width)
-        else:  # neither see the state
+        elif not self.visibility or self.visibility in {'False', 'false'}:  # neither see the state
             zeros = self._zero_rgb_image(height, width)
             return zeros, zeros
+        else:
+            raise ValueError(f"{self.visibility} invalid value for visibility")
 
     @abstractmethod
     def _to_numpy(self, height, width):

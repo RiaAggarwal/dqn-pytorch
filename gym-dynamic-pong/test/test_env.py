@@ -1,6 +1,8 @@
 import unittest
 import math
 
+import numpy as np
+
 from gym_dynamic_pong.envs import DynamicPongEnv
 
 
@@ -266,6 +268,7 @@ class TestEnvironmentBehaviorWithRefraction(TestEnvironmentBehavior):
         case7: entering snell to the right at positive angle
         case8: entering snell to the right at negative angle
     """
+
     def test_ball_leaving_snell_at_pi_12_refracts_to_0p544(self):
         self.env.env.ball.angle = math.pi / 12
         self.env.env.ball.x = self.env.env.snell.right_bound - self.env.default_speed / 10
@@ -358,6 +361,76 @@ class TestEnvironmentResponse(unittest.TestCase):
             total_reward += reward
 
         self.assertLess(total_reward, -1)
+
+
+class TestStateRendering(unittest.TestCase):
+    def get_env(self, state_type, snell_visible) -> DynamicPongEnv:
+        self.width = 320
+        self.height = 160
+        return DynamicPongEnv(
+            width=self.width,
+            height=self.height,
+            state_type=state_type,
+            snell_visible=snell_visible,
+        )
+
+    def test_binary_state_shape_is_width_height_3(self):
+        env = self.get_env('binary', False)
+        state = env.step(0)[0]
+        self.assertEqual((self.height, self.width, 3), state.shape)
+
+    def test_binary_rendering_shape_is_width_height_3(self):
+        env = self.get_env('binary', False)
+        env.step(0)
+        self.assertEqual((self.height, self.width, 3), env.rendering.shape)
+
+    def test_binary_state_dtype_is_uint8(self):
+        env = self.get_env('binary', False)
+        state = env.step(0)[0]
+        self.assertEqual(np.uint8, state.dtype)
+
+    def test_binary_rendering_dtype_is_uint8(self):
+        env = self.get_env('binary', False)
+        env.step(0)
+        self.assertEqual(np.uint8, env.rendering.dtype)
+
+    def test_color_state_shape_is_width_height_3(self):
+        env = self.get_env('color', False)
+        state = env.step(0)[0]
+        self.assertEqual((self.height, self.width, 3), state.shape)
+
+    def test_color_rendering_shape_is_width_height_3(self):
+        env = self.get_env('color', False)
+        env.step(0)
+        self.assertEqual((self.height, self.width, 3), env.rendering.shape)
+
+    def test_color_state_dtype_is_uint8(self):
+        env = self.get_env('color', False)
+        state = env.step(0)[0]
+        self.assertEqual(np.uint8, state.dtype)
+
+    def test_color_rendering_dtype_is_uint8(self):
+        env = self.get_env('color', False)
+        env.step(0)
+        self.assertEqual(np.uint8, env.rendering.dtype)
+
+    def test_color_snell_machine_is_correct_shape_and_dtype(self):
+        env = self.get_env('color', 'machine')
+        state = env.step(0)[0]
+        self.assertEqual((self.height, self.width, 3), state.shape)
+        self.assertEqual((self.height, self.width, 3), env.rendering.shape)
+        self.assertEqual(np.uint8, state.dtype)
+        self.assertEqual(np.uint8, env.rendering.dtype)
+        self.assertTrue(np.all(env.rendering == state))
+
+    def test_color_snell_human_is_correct_shape_and_dtype(self):
+        env = self.get_env('color', 'human')
+        state = env.step(0)[0]
+        self.assertEqual((self.height, self.width, 3), state.shape)
+        self.assertEqual((self.height, self.width, 3), env.rendering.shape)
+        self.assertEqual(np.uint8, state.dtype)
+        self.assertEqual(np.uint8, env.rendering.dtype)
+        self.assertFalse(np.all(env.rendering == state))
 
 
 if __name__ == '__main__':

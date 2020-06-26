@@ -263,7 +263,8 @@ if __name__ == '__main__':
                         help='snell speed (default: 3.0)')
     parser.add_argument('--snell-change', dest='snell_change', default=0, type=float,
                         help='Standard deviation of the speed change per step (default: 0)')
-    parser.add_argument('--snell-visible', dest='snell_visible', default=False, type=str, choices=['render', 'machine'],
+    parser.add_argument('--snell-visible', dest='snell_visible', default=False, type=str,
+                        choices=['human', 'machine', False],
                         help="Determine whether snell is visible to when rendering ('render') or to the agent and when"
                              "rendering ('machine')")
     parser.add_argument('--ps', '--paddle-speed', default=3.0, type=float,
