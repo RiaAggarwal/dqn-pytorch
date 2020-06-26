@@ -1,0 +1,15 @@
+width: 160
+height: 160
+ball: 1.0
+snell: 1.0
+paddle_speed: 1.0
+paddle_length: 45
+paddle_angle: 45
+learning_rate: 1e-4
+update_prob: 0.2
+episodes: 3200  # ended after 800
+resume:
+checkpoint: ../experiments/20/dqn_pong_model
+history: ../experiments/20/history.p
+network: dqn_pong_model
+#pretrain: False
