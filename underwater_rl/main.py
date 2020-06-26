@@ -269,13 +269,13 @@ if __name__ == '__main__':
                         choices=['human', 'machine', 'none'],
                         help="Determine whether snell is visible to when rendering ('render') or to the agent and when"
                              "rendering ('machine')")
-    parser.add_argument('--ps', '--paddle-speed', default=3.0, type=float,
+    parser.add_argument('--paddle-speed', default=3.0, type=float,
                         help='paddle speed (default: 3.0)')
-    parser.add_argument('--pa', '--paddle-angle', default=45, type=float,
+    parser.add_argument('--paddle-angle', default=45, type=float,
                         help='Maximum angle the ball can leave the paddle (default: 45deg)')
-    parser.add_argument('--pl', '--paddle-length', default=45, type=int,
+    parser.add_argument('--paddle-length', default=45, type=int,
                         help='paddle length (default: 45)')
-    parser.add_argument('--lr', '--learning-rate', default=1e-4, type=float,
+    parser.add_argument('--learning-rate', default=1e-4, type=float,
                         help='learning rate (default: 1e-4)')
     parser.add_argument('--state', default='binary', type=str, choices=['binary', 'color'],
                         help='state representation (default: binary)')
