@@ -4,7 +4,7 @@ from typing import List, Tuple, Union, Dict
 
 import numpy as np
 
-VISIBILITY_OPTS = ['human', 'machine', False]
+VISIBILITY_OPTS = ['human', 'machine', 'none']
 
 
 class Point:
@@ -299,7 +299,7 @@ class Shape(ABC):
             return state, state
         elif self.visibility == 'human':  # only renderer sees the state
             return self._zero_rgb_image(height, width), self._to_numpy(height, width)
-        elif not self.visibility or self.visibility in {'False', 'false'}:  # neither see the state
+        elif self.visibility == 'none':  # neither see the state
             zeros = self._zero_rgb_image(height, width)
             return zeros, zeros
         else:
@@ -523,16 +523,16 @@ class Rectangle(Shape):
         assert isinstance(height, int), f"height must be type int, not type {type(height)}"
         assert isinstance(width, int), f"width must be type int, not type {type(width)}"
         out = self._zero_rgb_image(height, width)
-        top = round(height - self.top_bound)
+        top = int(round(height - self.top_bound))
         if top < 0:
             top = 0
-        bottom = round(height - self.bot_bound)
+        bottom = int(round(height - self.bot_bound))
         if bottom > height:
             bottom = height
-        left = round(self.left_bound)
+        left = int(round(self.left_bound))
         if left < 0:
             left = 0
-        right = round(self.right_bound)
+        right = int(round(self.right_bound))
         if right > width:
             right = width
         out[top:bottom + 1, left:right + 1, :] = self.render_value
