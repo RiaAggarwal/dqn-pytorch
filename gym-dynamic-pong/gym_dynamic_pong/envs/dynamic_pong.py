@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from gym import spaces
 
-from gym_dynamic_pong.utils.misc import rgb_array_to_bool
+from gym_dynamic_pong.utils.preprocessing import rgb_array_to_binary
 from gym_dynamic_pong.utils.sprites import *
 
 
@@ -83,8 +83,8 @@ class DynamicPongEnv(gym.Env):
         reward = self.env.step(action)
         self.state, self.rendering = self.env.to_numpy()
         if self.state_type == 'binary':
-            self.state = rgb_array_to_bool(self.state)
-            self.rendering = rgb_array_to_bool(self.rendering)
+            self.state = rgb_array_to_binary(self.state)
+            self.rendering = rgb_array_to_binary(self.rendering)
         return self.state, reward, self.episode_is_over(), {}  # {} is a generic info dictionary
 
     def episode_is_over(self):

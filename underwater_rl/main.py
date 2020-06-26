@@ -275,7 +275,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', '--learning-rate', default=1e-4, type=float,
                         help='learning rate (default: 1e-4)')
     parser.add_argument('--state', default='binary', type=str, choices=['binary', 'color'],
-                        help='learning rate (default: 1e-4)')
+                        help='state representation (default: binary)')
     parser.add_argument('--network', default='dqn_pong_model',
                         help='choose a network architecture (default: dqn_pong_model)')
     parser.add_argument('--double', default=False, action='store_true',

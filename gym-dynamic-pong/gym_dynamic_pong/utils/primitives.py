@@ -243,16 +243,17 @@ class Shape(ABC):
 
         :param visibility: 'render' if the only visibility should be to the renderer, 'machine' if it should be visible
         to the agent and to the renderer.
-        :param render_value: value to use when rendering the object in Numpy. If a single value, interpret as the same
-        value for all colors. Otherwise, it must be a list, tuple, or numpy array of length 3.
+        :param render_value: 8-bit value to use when rendering the object in Numpy. If a single value, interpret as the
+        same value for all colors. Otherwise, it must be a list, tuple, or numpy array of length 3.
         """
         if isinstance(render_value, (float, int)):
-            render_value = np.array([render_value] * 3)
-        if isinstance(render_value, (list, tuple)):
-            render_value = np.array(render_value)
-        assert render_value.shape == (3, ), "If not passing a single number, render_value must be of length 3."
+            render_value = np.array([render_value] * 3, dtype=np.uint8)
         for rv in render_value:
-            assert 0 <= rv <= 1, "render_value must be between 0 and 1"
+            assert isinstance(rv, int), "render_value must be an integer"
+            assert 0 <= rv <= 2**8 - 1, "render_value must be between 0 and 255"
+        if isinstance(render_value, (list, tuple)):
+            render_value = np.array(render_value, dtype=np.uint8)
+        assert render_value.shape == (3, ), "If not passing a single number, render_value must be of length 3."
         assert visibility in VISIBILITY_OPTS, f"visibility {visibility} is not in {VISIBILITY_OPTS}"
 
         self.visibility = visibility
@@ -307,7 +308,7 @@ class Shape(ABC):
 
     @staticmethod
     def _zero_rgb_image(height, width):
-        return np.zeros((height, width, 3), dtype=np.float16)
+        return np.zeros((height, width, 3), dtype=np.uint8)
 
 
 class Circle(Shape):

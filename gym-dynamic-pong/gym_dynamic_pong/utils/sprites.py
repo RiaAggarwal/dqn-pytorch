@@ -185,7 +185,7 @@ class Canvas(Rectangle):
         self.ball = ball
         self.paddle_l = paddle_l
         self.paddle_r = paddle_r
-        self.sprites = [self, snell, ball, paddle_l, paddle_r]
+        self.sprites = [self, snell, paddle_l, paddle_r, ball]
 
         self.we_scored = False
         self.they_scored = False
@@ -216,12 +216,21 @@ class Canvas(Rectangle):
         return 0
 
     # noinspection PyMethodOverriding
-    def to_numpy(self) -> np.ndarray:
-        out = self._zero_rgb_image(round(self.height), round(self.width))
+    def to_numpy(self) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Performs masked rendering of objects in `self.sprites`. Priority is determined by the ordering of the list,
+        earlier objects will be obscured by later ones.
+
+        :return: (state, rendering)
+        """
+        state = self._zero_rgb_image(round(self.height), round(self.width))
+        rendering = self._zero_rgb_image(round(self.height), round(self.width))
 
         for sprite in self.sprites:
-            out += sprite.to_numpy(self.height, self.width)
-        return out
+            sprite_state, sprite_rendering = sprite.to_numpy(self.height, self.width)
+            state[sprite_state != 0] = sprite_state
+            rendering[sprite_rendering != 0] = sprite_rendering
+        return state, rendering
 
     def score(self, who):
         """
