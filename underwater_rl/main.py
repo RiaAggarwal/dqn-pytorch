@@ -261,6 +261,8 @@ if __name__ == '__main__':
                         help='ball size (default: 2.0)')
     parser.add_argument('--snell', default=3.0, type=float,
                         help='snell speed (default: 3.0)')
+    parser.add_argument('--snell-width', dest='snell_width', default=40.0, type=float,
+                        help='snell speed (default: 40.0)')
     parser.add_argument('--snell-change', dest='snell_change', default=0, type=float,
                         help='Standard deviation of the speed change per step (default: 0)')
     parser.add_argument('--snell-visible', dest='snell_visible', default='none', type=str,
@@ -346,6 +348,7 @@ if __name__ == '__main__':
         height=args.height,
         default_speed=args.ball,
         snell_speed=args.snell,
+        snell_width=args.snell_width,
         snell_change=args.snell_change,
         snell_visible=args.snell_visible,
         our_paddle_speed=args.ps,

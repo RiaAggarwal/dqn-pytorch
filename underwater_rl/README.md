@@ -14,6 +14,9 @@ python main.py
 
 ### Arguments
 
+`--snell-width`
+- set the width of the snell layer
+
 `--snell-visible`
 - Determine visibility of the snell layer.
     - 'human' - visible when rendering only

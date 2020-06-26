@@ -21,6 +21,7 @@ class DynamicPongEnv(gym.Env):
                  height=300,
                  default_speed=3,
                  snell_speed=3,
+                 snell_width=40,
                  snell_change=0,
                  snell_visible=False,
                  our_paddle_speed=3,
@@ -43,6 +44,7 @@ class DynamicPongEnv(gym.Env):
         self.height = height
         self.default_speed = default_speed
         self.snell_speed = snell_speed
+        self.snell_width = snell_width
         self.snell_change = snell_change
         self.snell_visible = snell_visible
         self.our_paddle_speed = our_paddle_speed
@@ -173,7 +175,7 @@ class DynamicPongEnv(gym.Env):
 
     def _init_snell(self, speed: float, change_rate: float):
         # Add one to height so that the boundary does not match the border
-        snell = Snell(0.25 * self.width, self.height + 1, speed, change_rate, visibility=self.snell_visible)
+        snell = Snell(self.snell_width, self.height + 1, speed, change_rate, visibility=self.snell_visible)
         snell.pos = self.width / 2, self.height / 2
         return snell
 
