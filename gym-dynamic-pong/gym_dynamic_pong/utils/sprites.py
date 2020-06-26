@@ -29,16 +29,17 @@ def get_critical_angle(s0: float, s1: float) -> Union[float, None]:
 
 
 class Paddle(Rectangle):
-    def __init__(self, height: float, width: float, speed: float, side: str, max_angle: float):
+    def __init__(self, height: float, width: float, speed: float, side: str, max_angle: float, visibility: str):
         """
 
         :param height: The paddle height
         :param width: The paddle width (only matters for rendering)
         :param side: The side the paddle will be on ('left' or 'right')
         :param speed: The units the paddle moves in a single turn
+        :param visibility: Whether and how to render the paddle. See `Shape.visibility`
         :param max_angle: The maximum angle at which the paddle can hit the ball
         """
-        super().__init__(height=height, width=width)
+        super().__init__(height=height, width=width, visibility=visibility, render_value=255)
         assert side in ['left', 'right'], f"side must be 'left' or 'right', not {side}"
         assert 0 <= max_angle <= math.pi / 2, f"max angle must be between 0 and pi/2, not {max_angle}"
         self.side = side
@@ -74,8 +75,15 @@ class Paddle(Rectangle):
 
 
 class Ball(Rectangle):
-    def __init__(self, size, max_initial_angle):
-        super().__init__(width=size, height=size)
+    def __init__(self, size: float, max_initial_angle: float, visibility: str):
+        """
+        Ball object
+
+        :param size: The size to render the ball
+        :param max_initial_angle: The maximum angle the ball can start with
+        :param visibility: How to render the ball. See `Shape.visibility`
+        """
+        super().__init__(width=size, height=size, visibility=visibility, render_value=255)
         self.max_initial_angle = max_initial_angle
         self.reset(self.pos, direction='left')
 
@@ -119,17 +127,18 @@ class Ball(Rectangle):
 
 
 class Snell(Rectangle):
-    def __init__(self, width, height, speed, change_rate=0):
+    def __init__(self, width, height, speed, change_rate, visibility):
         """
         Rectangular area with a different ball speed.
 
         :param width: The width of the layer
         :param height: The height of the layer
         :param change_rate: Rate at which the ball speed changes, the standard deviation of the change on each step.
+        :param visibility: Whether and how to render the layer. See `Shape.visibility`
         """
         assert change_rate >= 0, "Snell `change_rate` must be non-negative"
 
-        super().__init__(width=width, height=height)
+        super().__init__(width=width, height=height, visibility=visibility, render_value=(235, 76, 52))
         self.speed = speed
         self._initial_speed = speed
         self.change_rate = change_rate
@@ -152,7 +161,6 @@ class Snell(Rectangle):
             pass
 
 
-
 class Canvas(Rectangle):
     action_meanings = {0: 'NOOP',
                        1: 'UP',
@@ -160,9 +168,9 @@ class Canvas(Rectangle):
     actions = {k: v for v, k in action_meanings.items()}
 
     def __init__(self, paddle_l: Paddle, paddle_r: Paddle, ball: Ball, snell: Snell, ball_speed: int, height: int,
-                 width: int, their_update_probability: float, **kwargs):
+                 width: int, their_update_probability: float):
 
-        super().__init__(height=height, width=width, **kwargs)
+        super().__init__(height=height, width=width, visibility='none', render_value=0)
         self.pos = self.width / 2, self.height / 2
 
         assert isinstance(their_update_probability, (float, int)), \
@@ -177,6 +185,7 @@ class Canvas(Rectangle):
         self.ball = ball
         self.paddle_l = paddle_l
         self.paddle_r = paddle_r
+        self.sprites = [self, snell, paddle_l, paddle_r, ball]
 
         self.we_scored = False
         self.they_scored = False
@@ -184,6 +193,11 @@ class Canvas(Rectangle):
         # score
         self.our_score = 0
         self.their_score = 0
+        
+    def register_sprite(self, sprite: Shape):
+        assert issubclass(type(sprite), Shape), f"sprite must be subclassed from Shape"
+        # noinspection PyTypeChecker
+        self.sprites.insert(-1, sprite)  # insert before ball
 
     @property
     def left_bound(self):
@@ -201,16 +215,22 @@ class Canvas(Rectangle):
     def bot_bound(self):
         return 0
 
-    def get_objects(self):
-        return self, self.snell, self.paddle_r, self.paddle_l
-
     # noinspection PyMethodOverriding
-    def to_numpy(self) -> np.ndarray:
-        out = np.zeros((round(self.height), round(self.width)), dtype=np.bool)
+    def to_numpy(self) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Performs masked rendering of objects in `self.sprites`. Priority is determined by the ordering of the list,
+        earlier objects will be obscured by later ones.
 
-        for sprite in (self.ball, self.paddle_l, self.paddle_r):
-            out |= sprite.to_numpy(self.height, self.width)
-        return out
+        :return: (state, rendering)
+        """
+        state = self._zero_rgb_image(round(self.height), round(self.width))
+        rendering = self._zero_rgb_image(round(self.height), round(self.width))
+
+        for sprite in self.sprites[1:]:  # skip self
+            sprite_state, sprite_rendering = sprite.to_numpy(self.height, self.width)
+            state[sprite_state != 0] = sprite_state[sprite_state != 0]
+            rendering[sprite_rendering != 0] = sprite_rendering[sprite_rendering != 0]
+        return state, rendering
 
     def score(self, who):
         """
@@ -290,13 +310,12 @@ class Canvas(Rectangle):
 
         return reward
 
-    def _interaction_dispatcher(self, interaction_result: List, trajectory: Line):
+    def _interaction_dispatcher(self, interaction_result: List[Tuple], trajectory: Line):
         """
         Dispatch data to the appropriate method based on the interaction `obj`.
 
+        :param interaction_result: list of interactions that occurred in the step at the same point
         :param trajectory: the trajectory of the ball
-        :param obj: An object in the canvas
-        :param point: the point of interaction
         """
         reward = 0
         if len(interaction_result) == 1:
@@ -359,7 +378,8 @@ class Canvas(Rectangle):
         return False
 
     @staticmethod
-    def _adjust_refraction_to_direction_of_incidence(boundary_angle, new_angle, trajectory):
+    def _adjust_refraction_to_direction_of_incidence(boundary_angle: float, new_angle: float, trajectory: Line) \
+            -> float:
         """
         If the direction of incidence was from the right of the boundary, reflect `new_angle`, otherwise, return
         `new_angle` without modification.
@@ -370,6 +390,7 @@ class Canvas(Rectangle):
         :return: The (possibly) reflected `new_angle`
         """
         assert -math.pi / 2 <= boundary_angle <= math.pi / 2, "boundary_angle should be in first or fourth quadrant"
+        # noinspection PyChainedComparisons
         if boundary_angle >= 0 and boundary_angle < trajectory.angle % (2 * math.pi) < boundary_angle + math.pi:
             new_angle = math.pi - new_angle
         elif (boundary_angle < 0 and
@@ -462,7 +483,7 @@ class Canvas(Rectangle):
         """
         result = None
 
-        for o in self.get_objects():
+        for o in self.sprites[:-1]:  # Exclude ball
             intersection_result = o.get_intersection(trajectory)
             if intersection_result is not None:
                 edge, intersection = intersection_result
