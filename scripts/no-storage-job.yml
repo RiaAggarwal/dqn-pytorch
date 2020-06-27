@@ -11,7 +11,7 @@ spec:
         command: ["/bin/bash","-c"]
         args:
         - "mkdir /ephemeral/${user};
-          cd /data/${user};
+          cd /ephemeral/${user};
           git clone https://github.com/Ian-Mint/pong-underwater-rl.git --branch ${branch};
           cd pong-underwater-rl;
           git checkout -b ${job_name};
