@@ -49,6 +49,9 @@ def filter_git_commands(cmd_template: str) -> str:
 
 
 def populate_cmd(template, options):
+    if args.command_preview:
+        print(f'python main.py {options}')
+
     if args.ephemeral:
         return template.format(user=args.user, branch=args.branch, options=options, job_name=job_name,
                                git_email=args.git_email, git_user=args.git_user, git_password=args.git_password)
@@ -73,6 +76,8 @@ if __name__ == '__main__':
     parser.add_argument('--git-user', dest='git_user', help="your GitHub username")
     parser.add_argument('--git-password', dest='git_password', help="your GitHub password. Use at your own risk.")
     parser.add_argument('-p', '--preview', action='store_true', help="Preview the created job file without running it")
+    parser.add_argument('-cp', '--command-preview', dest='command_preview', action='store_true',
+                        help="Preview the main.py command(s)")
     args = parser.parse_args()
     if args.ephemeral and (args.git_email is None or args.git_user is None or args.git_password is None):
         parser.error("--ephemeral requires --git-email, --git-user and --git-password.")
@@ -107,7 +112,10 @@ if __name__ == '__main__':
         idx = idx.pop()
 
         for n, opts in enumerate(experiments_options[1:]):
-            commands.insert(n + idx + 1, f'python main.py {opts}')
+            main_cmd = f'python main.py {opts}'
+            commands.insert(n + idx + 1, main_cmd)
+            if args.command_preview:
+                print(main_cmd)
         cmd = '; '.join(commands[:idx]) + '; '
         cmd += ' & '.join(commands[idx:idx + len(args.name)])
         cmd += ' & wait < <(jobs -p); '  # Add a process to keep the pod alive while the background jobs are running
