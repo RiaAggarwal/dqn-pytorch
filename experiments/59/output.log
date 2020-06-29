@@ -1,0 +1,7 @@
+2020-06-27 00:04:11,635	INFO	--width 160 --height 160 --ball 3.0 --ball-size 2.0 --snell 2.0 --snell-width 40.0 --snell-change 0 --snell-visible none --ps 3.0 --paddle-speed 3.0 --pa 45 --paddle-angle 45 --pl 45 --paddle-length 45 --lr 0.0001 --learning-rate 0.0001 --state binary --network dqn_pong_model --render False --epsdecay 1000 --replay 10000 --update-prob 0.2 --episodes 4000 --checkpoint ../experiments/baseline-1-t3/dqn_pong_model --history ../experiments/baseline-1-t3/history.p --store-dir ../experiments/59 
+2020-06-27 00:04:11,635	INFO	Device: cuda
+2020-06-27 00:04:15,493	INFO	Loading the trained model
+2020-06-27 00:16:01,002	INFO	Total steps: 6223699	Episode: 8020/5313	Avg reward: -14.25	Avg steps: 1687
+2020-06-27 01:08:13,340	INFO	Total steps: 6369100	Episode: 8040/3271	Avg reward: -6.05	Avg steps: 7269
+2020-06-27 01:44:19,698	INFO	Total steps: 6469247	Episode: 8060/2052	Avg reward: -6.45	Avg steps: 5006
+2020-06-27 02:17:08,594	INFO	Total steps: 6559212	Episode: 8080/4574	Avg reward: -8.15	Avg steps: 4497
