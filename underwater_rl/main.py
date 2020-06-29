@@ -251,6 +251,8 @@ def get_args_status_string(parser: argparse.ArgumentParser, args: argparse.Names
 if __name__ == '__main__':
     # arguments
     parser = argparse.ArgumentParser(description='Dynamic Pong RL')
+    
+    '''environment args'''
     parser.add_argument('--width', default=160, type=int,
                         help='canvas width (default: 160)')
     parser.add_argument('--height', default=160, type=int,
@@ -275,6 +277,10 @@ if __name__ == '__main__':
                         help='Maximum angle the ball can leave the paddle (default: 45deg)')
     parser.add_argument('--pl', '--paddle-length', default=45, type=int,
                         help='paddle length (default: 45)')
+    parser.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
+                        help='Probability that the opponent moves in the direction of the ball (default: 0.2)')
+    
+    '''RL args'''
     parser.add_argument('--lr', '--learning-rate', default=1e-4, type=float,
                         help='learning rate (default: 1e-4)')
     parser.add_argument('--state', default='binary', type=str, choices=['binary', 'color'],
@@ -295,10 +301,10 @@ if __name__ == '__main__':
                         help="switch to use default step decay")
     parser.add_argument('--replay', default=10000, type=int,
                         help="change the replay mem size (default: 10000)")
-    parser.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
-                        help='Probability that the opponent moves in the direction of the ball (default: 0.2)')
     parser.add_argument('--episodes', dest='episodes', default=4000, type=int,
                         help='Number of episodes to train for (default: 4000)')
+    
+    '''resume args'''
     parser.add_argument('--resume', dest='resume', action='store_true',
                         help='Resume training switch. (omit to start from scratch)')
     parser.add_argument('--checkpoint', default='dqn_pong_model',
