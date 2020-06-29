@@ -79,11 +79,12 @@ if __name__ == '__main__':
     parser.add_argument('-cp', '--command-preview', dest='command_preview', action='store_true',
                         help="Preview the main.py command(s)")
     args = parser.parse_args()
-    if args.ephemeral and (args.git_email is None or args.git_user is None or args.git_password is None):
-        parser.error("--ephemeral requires --git-email, --git-user and --git-password.")
-    # escape special characters
-    args.git_password = urllib.parse.quote(args.git_password)
-    args.git_user = urllib.parse.quote(args.git_user)
+    if args.ephemeral:
+        if args.git_email is None or args.git_user is None or args.git_password is None:
+            parser.error("--ephemeral requires --git-email, --git-user and --git-password.")
+        # escape special characters
+        args.git_password = urllib.parse.quote(args.git_password)
+        args.git_user = urllib.parse.quote(args.git_user)
 
     if not isinstance(args.file, list):
         args.file = [args.file]
@@ -120,8 +121,6 @@ if __name__ == '__main__':
         cmd += ' & '.join(commands[idx:idx + len(args.name)])
         cmd += ' & wait < <(jobs -p); '  # Add a process to keep the pod alive while the background jobs are running
         cmd += '; '.join(commands[idx + len(args.name):]) + ';'
-    else:
-        cmd = populate_cmd(cmd_template, experiments_options[0])
 
     job['spec']['template']['spec']['containers'][0]['args'][0] = cmd
     job['spec']['template']['spec']['containers'][0]['resources']['limits']['memory'] = f'{round(args.memory * 1.2):d}Gi'
@@ -136,6 +135,8 @@ if __name__ == '__main__':
 
     if args.preview:
         print(job_yaml)
+    elif args.command_preview:
+        pass
     else:
         with open('final.yml', 'w') as f:
             f.write(job_yaml)
