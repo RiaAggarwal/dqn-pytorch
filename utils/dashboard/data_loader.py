@@ -30,7 +30,8 @@ def get_experiments() -> List[Dict]:
     :return: List of experiments
     """
     experiments_root = os.path.join(root_dir, 'experiments')
-    return [{'label': e, 'value': e} for e in os.listdir(experiments_root)]
+    experiments = [{'label': e, 'value': e} for e in os.listdir(experiments_root)]
+    return sorted(experiments, key=lambda x: x['label'])
 
 
 def get_multi_index_history_df(experiments: List[str]) -> pd.DataFrame:
