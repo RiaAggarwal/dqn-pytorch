@@ -227,3 +227,13 @@
 2020-06-30 04:18:57,051	INFO	Total steps: 10919201	Episode: 3460/2968	Avg reward: -18.70	Avg steps: 5804
 2020-06-30 04:59:54,614	INFO	Total steps: 11037236	Episode: 3480/3428	Avg reward: -19.15	Avg steps: 5900
 2020-06-30 05:42:12,605	INFO	Total steps: 11159495	Episode: 3500/6161	Avg reward: -18.55	Avg steps: 6111
+2020-06-30 06:23:43,585	INFO	Total steps: 11279416	Episode: 3520/7790	Avg reward: -18.75	Avg steps: 5995
+2020-06-30 07:12:18,093	INFO	Total steps: 11419364	Episode: 3540/7256	Avg reward: -18.35	Avg steps: 6996
+2020-06-30 07:57:29,956	INFO	Total steps: 11551578	Episode: 3560/7156	Avg reward: -18.90	Avg steps: 6609
+2020-06-30 08:37:44,836	INFO	Total steps: 11672118	Episode: 3580/5778	Avg reward: -19.15	Avg steps: 6026
+2020-06-30 09:15:21,524	INFO	Total steps: 11785089	Episode: 3600/6418	Avg reward: -18.50	Avg steps: 5647
+2020-06-30 09:53:50,513	INFO	Total steps: 11900660	Episode: 3620/4993	Avg reward: -18.75	Avg steps: 5777
+2020-06-30 10:39:30,603	INFO	Total steps: 12038548	Episode: 3640/4335	Avg reward: -18.40	Avg steps: 6893
+2020-06-30 11:20:35,962	INFO	Total steps: 12161938	Episode: 3660/7806	Avg reward: -18.55	Avg steps: 6168
+2020-06-30 12:00:36,071	INFO	Total steps: 12281881	Episode: 3680/5263	Avg reward: -18.25	Avg steps: 5996
+2020-06-30 12:43:06,315	INFO	Total steps: 12409784	Episode: 3700/4813	Avg reward: -18.25	Avg steps: 6394
