@@ -40,10 +40,10 @@ def select_action(state):
     sample = random.random()
     if STEPSDECAY:
         eps_threshold = EPS_END + (EPS_START - EPS_END) * \
-                    math.exp(-1. * steps_done / 1000000)
+                        math.exp(-1. * steps_done / 1000000)
     else:
         eps_threshold = EPS_END + (EPS_START - EPS_END) * \
-                    math.exp(-1. * epoch / EPS_DECAY)
+                        math.exp(-1. * epoch / EPS_DECAY)
 
     steps_done += 1
     if sample > eps_threshold:
@@ -132,7 +132,7 @@ def train(env, n_episodes, history, render=False):
     global epoch
     for episode in range(1, n_episodes + 1):
         obs = env.reset()
-        state = get_state(obs)      # torch.Size([1, 4, 84, 84])
+        state = get_state(obs)  # torch.Size([1, 4, 84, 84])
         total_reward = 0.0
         for t in count():
             action = select_action(state)
@@ -261,73 +261,76 @@ def get_args_status_string(parser: argparse.ArgumentParser, args: argparse.Names
 if __name__ == '__main__':
     # arguments
     parser = argparse.ArgumentParser(description='Dynamic Pong RL')
-    
+
     '''environment args'''
-    parser.add_argument('--width', default=160, type=int,
-                        help='canvas width (default: 160)')
-    parser.add_argument('--height', default=160, type=int,
-                        help='canvas height (default: 160)')
-    parser.add_argument('--ball', default=3.0, type=float,
-                        help='ball speed (default: 3.0)')
-    parser.add_argument('--ball-size', dest='ball_size', default=2.0, type=float,
-                        help='ball size (default: 2.0)')
-    parser.add_argument('--snell', default=3.0, type=float,
-                        help='snell speed (default: 3.0)')
-    parser.add_argument('--snell-width', dest='snell_width', default=40.0, type=float,
-                        help='snell speed (default: 40.0)')
-    parser.add_argument('--snell-change', dest='snell_change', default=0, type=float,
-                        help='Standard deviation of the speed change per step (default: 0)')
-    parser.add_argument('--snell-visible', dest='snell_visible', default='none', type=str,
-                        choices=['human', 'machine', 'none'],
-                        help="Determine whether snell is visible to when rendering ('render') or to the agent and when"
-                             "rendering ('machine')")
-    parser.add_argument('--paddle-speed', default=3.0, type=float,
-                        help='paddle speed (default: 3.0)')
-    parser.add_argument('--paddle-angle', default=45, type=float,
-                        help='Maximum angle the ball can leave the paddle (default: 45deg)')
-    parser.add_argument('--paddle-length', default=45, type=int,
-                        help='paddle length (default: 45)')
-    parser.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
-                        help='Probability that the opponent moves in the direction of the ball (default: 0.2)')
-    
+    env_args = parser.add_argument_group('Environment', "Environment controls")
+    env_args.add_argument('--width', default=160, type=int,
+                          help='canvas width (default: 160)')
+    env_args.add_argument('--height', default=160, type=int,
+                          help='canvas height (default: 160)')
+    env_args.add_argument('--ball', default=3.0, type=float,
+                          help='ball speed (default: 3.0)')
+    env_args.add_argument('--ball-size', dest='ball_size', default=2.0, type=float,
+                          help='ball size (default: 2.0)')
+    env_args.add_argument('--snell', default=3.0, type=float,
+                          help='snell speed (default: 3.0)')
+    env_args.add_argument('--snell-width', dest='snell_width', default=40.0, type=float,
+                          help='snell speed (default: 40.0)')
+    env_args.add_argument('--snell-change', dest='snell_change', default=0, type=float,
+                          help='Standard deviation of the speed change per step (default: 0)')
+    env_args.add_argument('--snell-visible', dest='snell_visible', default='none', type=str,
+                          choices=['human', 'machine', 'none'],
+                          help="Determine whether snell is visible to when rendering ('render') or to the agent and "
+                               "when rendering ('machine')")
+    env_args.add_argument('--paddle-speed', default=3.0, type=float,
+                          help='paddle speed (default: 3.0)')
+    env_args.add_argument('--paddle-angle', default=45, type=float,
+                          help='Maximum angle the ball can leave the paddle (default: 45deg)')
+    env_args.add_argument('--paddle-length', default=45, type=int,
+                          help='paddle length (default: 45)')
+    env_args.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
+                          help='Probability that the opponent moves in the direction of the ball (default: 0.2)')
+
     '''RL args'''
-    parser.add_argument('--learning-rate', default=1e-4, type=float,
-                        help='learning rate (default: 1e-4)')
-    parser.add_argument('--state', default='binary', type=str, choices=['binary', 'color'],
-                        help='state representation (default: binary)')
-    parser.add_argument('--network', default='dqn_pong_model',
-                        help='choose a network architecture (default: dqn_pong_model)')
-    parser.add_argument('--double', default=False, action='store_true',
-                        help='switch for double dqn (default: False)')
-    parser.add_argument('--pretrain', default=False, action='store_true',
-                        help='switch for pretrained network (default: False)')
-    parser.add_argument('--test', default=False, action='store_true',
-                        help='Run the model without training')
-    parser.add_argument('--render', default=False, type=str, choices=['human', 'png'],
-                        help="Rendering mode. Omit if no rendering is desired.")
-    parser.add_argument('--epsdecay', default=1000, type=int,
-                        help="epsilon decay (default: 1000)")
-    parser.add_argument('--stepsdecay', default=False, action='store_true',
-                        help="switch to use default step decay")
-    parser.add_argument('--episodes', dest='episodes', default=4000, type=int,
-                        help='Number of episodes to train for (default: 4000)')
-    parser.add_argument('--replay', default=10000, type=int,
-                        help="change the replay mem size (default: 10000)")
-    parser.add_argument('--priority', default=False, action='store_true',
-                        help='switch for prioritized replay (default: False)')
-    parser.add_argument('--rankbased', default=False, action='store_true',
-                        help='switch for rank-based prioritized replay (omit if proportional)')
-    
+    rl_args = parser.add_argument_group("Model", "Reinforcement learning model parameters")
+    rl_args.add_argument('--learning-rate', default=1e-4, type=float,
+                         help='learning rate (default: 1e-4)')
+    rl_args.add_argument('--state', default='binary', type=str, choices=['binary', 'color'],
+                         help='state representation (default: binary)')
+    rl_args.add_argument('--network', default='dqn_pong_model',
+                         help='choose a network architecture (default: dqn_pong_model)')
+    rl_args.add_argument('--double', default=False, action='store_true',
+                         help='switch for double dqn (default: False)')
+    rl_args.add_argument('--pretrain', default=False, action='store_true',
+                         help='switch for pretrained network (default: False)')
+    rl_args.add_argument('--test', default=False, action='store_true',
+                         help='Run the model without training')
+    rl_args.add_argument('--render', default=False, type=str, choices=['human', 'png'],
+                         help="Rendering mode. Omit if no rendering is desired.")
+    rl_args.add_argument('--epsdecay', default=1000, type=int,
+                         help="epsilon decay (default: 1000)")
+    rl_args.add_argument('--stepsdecay', default=False, action='store_true',
+                         help="switch to use default step decay")
+    rl_args.add_argument('--episodes', dest='episodes', default=4000, type=int,
+                         help='Number of episodes to train for (default: 4000)')
+    rl_args.add_argument('--replay', default=10000, type=int,
+                         help="change the replay mem size (default: 10000)")
+    rl_args.add_argument('--priority', default=False, action='store_true',
+                         help='switch for prioritized replay (default: False)')
+    rl_args.add_argument('--rankbased', default=False, action='store_true',
+                         help='switch for rank-based prioritized replay (omit if proportional)')
+
     '''resume args'''
-    parser.add_argument('--resume', dest='resume', action='store_true',
-                        help='Resume training switch. (omit to start from scratch)')
-    parser.add_argument('--checkpoint', default='dqn_pong_model',
-                        help='Checkpoint to load if resuming (default: dqn_pong_model)')
-    parser.add_argument('--history', default='history.p',
-                        help='History to load if resuming (default: history.p)')
-    parser.add_argument('--store-dir', dest='store_dir',
-                        default=os.path.join('..', 'experiments', time.strftime("%Y-%m-%d %H.%M.%S")),
-                        help='Path to directory to store experiment results (default: ./experiments/<timestamp>/')
+    resume_args = parser.add_argument_group("Resume", "Store experiments / Resume training")
+    resume_args.add_argument('--resume', dest='resume', action='store_true',
+                             help='Resume training switch. (omit to start from scratch)')
+    resume_args.add_argument('--checkpoint', default='dqn_pong_model',
+                             help='Checkpoint to load if resuming (default: dqn_pong_model)')
+    resume_args.add_argument('--history', default='history.p',
+                             help='History to load if resuming (default: history.p)')
+    resume_args.add_argument('--store-dir', dest='store_dir',
+                             default=os.path.join('..', 'experiments', time.strftime("%Y-%m-%d %H.%M.%S")),
+                             help='Path to directory to store experiment results (default: ./experiments/<timestamp>/')
 
     args = parser.parse_args()
 
@@ -343,7 +346,7 @@ if __name__ == '__main__':
     EPS_DECAY = args.epsdecay
     TARGET_UPDATE = 1000
     RENDER = args.render
-    lr = args.lr
+    lr = args.learning_rate
     INITIAL_MEMORY = args.replay
     MEMORY_SIZE = 10 * INITIAL_MEMORY
     DOUBLE = args.double
@@ -372,12 +375,12 @@ if __name__ == '__main__':
         snell_width=args.snell_width,
         snell_change=args.snell_change,
         snell_visible=args.snell_visible,
-        our_paddle_speed=args.ps,
-        their_paddle_speed=args.ps,
-        our_paddle_height=args.pl,
-        their_paddle_height=args.pl,
-        our_paddle_angle=math.radians(args.pa),
-        their_paddle_angle=math.radians(args.pa),
+        our_paddle_speed=args.paddle_speed,
+        their_paddle_speed=args.paddle_speed,
+        our_paddle_height=args.paddle_length,
+        their_paddle_height=args.paddle_length,
+        our_paddle_angle=math.radians(args.paddle_angle),
+        their_paddle_angle=math.radians(args.paddle_angle),
         their_update_probability=args.update_prob,
         ball_size=args.ball_size,
         state_type=args.state,
