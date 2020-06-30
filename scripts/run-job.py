@@ -120,7 +120,7 @@ if __name__ == '__main__':
         cmd = '; '.join(commands[:idx]) + '; '
         cmd += ' & '.join(commands[idx:idx + len(args.name)])
         cmd += ' & wait < <(jobs -p); '  # Add a process to keep the pod alive while the background jobs are running
-        cmd += '; '.join(commands[idx + len(args.name):]) + ';'
+        cmd += '; '.join(commands[idx + len(args.name):])
 
     job['spec']['template']['spec']['containers'][0]['args'][0] = cmd
     job['spec']['template']['spec']['containers'][0]['resources']['limits']['memory'] = f'{round(args.memory * 1.2):d}Gi'
