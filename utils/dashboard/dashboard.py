@@ -9,6 +9,7 @@ import dash
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from dash.dependencies import Input, Output
@@ -144,7 +145,6 @@ app.layout = html.Div(
                     [
                         dbc.Table(id='experiment-table'),
                     ],
-                    className='pretty_container twelve columns',
                     id='params-table-div',
                 ),
             ],
@@ -181,8 +181,8 @@ def make_experiment_table(experiments: List[str]) -> List:
         df = get_parameters_df(experiments)
         table = dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
     else:
-        table = get_empty_sunburst('Select and experiment')
-    return [table]
+        table = dbc.Table.from_dataframe(pd.DataFrame())
+    return table
 
 
 @app.callback(

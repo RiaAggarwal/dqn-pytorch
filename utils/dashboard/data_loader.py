@@ -110,11 +110,12 @@ def get_steps_history_df(experiments: List[str], moving_avg_len=1) -> pd.DataFra
 def get_parameters_df(experiments: List[str]):
     df = pd.DataFrame()
     for e in experiments:
+        params_dict = dict(experiment=e)
         with open(os.path.join(root_dir, 'experiments', e, 'output.log')) as f:
-            params_dict = _parse_parameters(f.readline())
+            params_dict.update(_parse_parameters(f.readline()))
         params_df = pd.DataFrame(params_dict, index=[e])
 
-        df = pd.concat([df, params_df], axis=1)
+        df = pd.concat([df, params_df], axis=0, join='outer')
     return df
 
 
