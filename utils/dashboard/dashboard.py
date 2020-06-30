@@ -9,12 +9,12 @@ import dash
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from dash.dependencies import Input, Output
 
-from data_loader import get_experiments, get_rewards_history_df, get_steps_history_df
-
+from data_loader import get_experiments, get_rewards_history_df, get_steps_history_df, get_parameters_df
 
 # Initialize app
 app = dash.Dash(__name__, meta_tags=[{"name": "viewport", "content": "width=device-width"}],
@@ -64,6 +64,8 @@ def load_markdown_text(file: str) -> str:
     return md
 
 
+experiments = get_experiments()
+
 # Create app layout
 app.layout = html.Div(
     [
@@ -91,7 +93,7 @@ app.layout = html.Div(
             style={"margin-bottom": "25px"},
         ),
 
-        # Dashboard
+        # Training
         html.Div(
             [
                 html.Div(
@@ -101,24 +103,23 @@ app.layout = html.Div(
                                 "Select experiments:",
                                 dcc.Dropdown(
                                     id='experiment-selector',
-                                    options=get_experiments(),
+                                    options=experiments,
                                     multi=True
                                 ),
                                 html.Br(),
-                                "Moving average length:",
+                                html.P("Moving average length:", id='moving-avg-slider-text'),
                                 dcc.Slider(
                                     id='moving-avg-slider',
                                     min=1,
                                     max=100,
                                     step=1,
                                     value=10,
-                                    tooltip=dict(always_visible=True, placement='bottomLeft'),
                                 ),
                             ]
                         ),
                     ],
                     className='pretty_container three columns',
-                    id='ml_controls',
+                    id='training-div',
                 ),
                 html.Div(
                     [
@@ -131,6 +132,20 @@ app.layout = html.Div(
                         dcc.Graph(id='step-plot')
                     ],
                     className='pretty_container five columns',
+                ),
+            ],
+            className='flex-display',
+            style={'margin-bottom': '25px'}
+        ),
+
+        # Parameters
+        html.Div(
+            [
+                html.Div(
+                    [
+                        dbc.Table(id='experiment-table'),
+                    ],
+                    id='params-table-div',
                 ),
             ],
             className='flex-display',
@@ -155,6 +170,27 @@ def get_empty_sunburst(text: str):
         path=['x'],
         hover_data=None
     )
+
+
+@app.callback(
+    Output('experiment-table', 'children'),
+    [Input('experiment-selector', 'value')]
+)
+def make_experiment_table(experiments: List[str]) -> List:
+    if experiments:
+        df = get_parameters_df(experiments)
+        table = dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
+    else:
+        table = dbc.Table.from_dataframe(pd.DataFrame())
+    return table
+
+
+@app.callback(
+    Output('moving-avg-slider-text', 'children'),
+    [Input('moving-avg-slider', 'value')]
+)
+def update_moving_avg_slider_text(value: int) -> List:
+    return [f"Moving average length: {value}"]
 
 
 @app.callback(
@@ -197,9 +233,9 @@ def get_step_plot(experiments: List[str], moving_avg_len) -> go.Figure:
 
 if __name__ == '__main__':
     # noinspection PyTypeChecker
-    app.run_server(debug=False,
+    app.run_server(debug=True,
                    dev_tools_hot_reload=False,
-                   # host=os.getenv("HOST", "127.0.0.1"),
-                   host=os.getenv("HOST", "192.168.1.10"),
+                   host=os.getenv("HOST", "127.0.0.1"),
+                   # host=os.getenv("HOST", "192.168.1.10"),
                    port=os.getenv("PORT", "8050"),
                    )

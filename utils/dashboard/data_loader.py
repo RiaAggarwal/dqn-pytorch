@@ -1,5 +1,6 @@
 import os
 import pickle
+import re
 from typing import List, Tuple, Dict
 
 import pandas as pd
@@ -29,7 +30,8 @@ def get_experiments() -> List[Dict]:
     :return: List of experiments
     """
     experiments_root = os.path.join(root_dir, 'experiments')
-    return [{'label': e, 'value': e} for e in os.listdir(experiments_root)]
+    experiments = [{'label': e, 'value': e} for e in os.listdir(experiments_root)]
+    return sorted(experiments, key=lambda x: x['label'])
 
 
 def get_multi_index_history_df(experiments: List[str]) -> pd.DataFrame:
@@ -104,3 +106,51 @@ def get_steps_history_df(experiments: List[str], moving_avg_len=1) -> pd.DataFra
     """
     df = _get_history_df(experiments, 1)
     return get_moving_average(df, moving_avg_len)
+
+
+def get_parameters_df(experiments: List[str]):
+    df = pd.DataFrame()
+    for e in experiments:
+        params_dict = dict(experiment=e)
+        with open(os.path.join(root_dir, 'experiments', e, 'output.log')) as f:
+            params_dict.update(_parse_parameters(f.readline()))
+        params_df = pd.DataFrame(params_dict, index=[e])
+
+        df = pd.concat([df, params_df], axis=0, join='outer')
+    return df
+
+
+def _parse_parameters(log_line: str) -> dict:
+    params = re.findall(r'--([a-z-]+)', log_line)
+
+    # remove params irrelevant to training
+    _list_try_remove(params, 'store-dir')
+    _list_try_remove(params, 'render')
+    _list_try_remove(params, 'checkpont')
+    _list_try_remove(params, 'history')
+
+    # remove redundant params
+    _list_try_remove(params, 'ps')
+    _list_try_remove(params, 'pa')
+    _list_try_remove(params, 'pl')
+    _list_try_remove(params, 'lr')
+
+    result = dict()
+    for p in params:
+        matches = re.findall(rf'(?<=--{p}\s)(\S*)(?=\s)', log_line)
+        assert len(matches) == 1, f"wrong number of matches for param {p}"
+        result[p] = matches.pop()
+    return result
+
+
+def _list_try_remove(l: list, item):
+    """
+    Removes an item if it exists. Does nothing if `item` is not in list.
+
+    :param l: List to modify in place
+    :param item: Item to remove
+    """
+    try:
+        l.remove(item)
+    except ValueError:
+        pass
