@@ -286,7 +286,7 @@ if __name__ == '__main__':
                           help='paddle speed (default: 3.0)')
     env_args.add_argument('--paddle-angle', default=45, type=float,
                           help='Maximum angle the ball can leave the paddle (default: 45deg)')
-    env_args.add_argument('--paddle-length', default=45, type=int,
+    env_args.add_argument('--paddle-length', default=45, type=float,
                           help='paddle length (default: 45)')
     env_args.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
                           help='Probability that the opponent moves in the direction of the ball (default: 0.2)')
