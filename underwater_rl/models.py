@@ -33,7 +33,7 @@ class DQNbn(nn.Module):
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
-        x = F.relu(self.fc4(x.view(x.size(0), -1)))
+        x = F.relu(self.fc4(x.reshape(x.size(0), -1)))
         return self.head(x)
 
 
@@ -61,7 +61,7 @@ class DQN(nn.Module):
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
-        x = F.relu(self.fc4(x.view(x.size(0), -1)))
+        x = F.relu(self.fc4(x.reshape(x.size(0), -1)))
         return self.head(x)
 
 # ResNet Below
@@ -193,7 +193,7 @@ class ResNet(nn.Module):
 
     def _forward_impl(self, x):
         # See note [TorchScript super()]
-        x = x.float()
+        x = x.float() / 255
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)

@@ -21,7 +21,7 @@ import torch.nn.functional as F
 
 sys.path.append(os.path.dirname(__file__))
 
-from memory import ReplayMemory
+from memory import ReplayMemory, PrioritizedReplay
 from models import *
 from wrappers import *
 from utils import convert_images_to_video
@@ -30,7 +30,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets de
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
-Transition = namedtuple('Transion',
+Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
 
 
@@ -48,7 +48,7 @@ def select_action(state):
     steps_done += 1
     if sample > eps_threshold:
         with torch.no_grad():
-            return policy_net(state.to(device)).max(1)[1].view(1, 1)
+            return policy_net(state.to(device)).max(1)[1]
     else:
         # TODO: should this just go the the CPU?
         return torch.tensor([[random.randrange(env.action_space.n)]], device=device, dtype=torch.long)
@@ -65,7 +65,11 @@ def toc(tstart, nm=""):
 def optimize_model():
     if len(memory) < BATCH_SIZE:
         return
-    transitions = memory.sample(BATCH_SIZE)
+    if PRIORITY:
+        idxs, weights, transitions = memory.sample(BATCH_SIZE)
+        weights = torch.from_numpy(weights).float().to(device)
+    else:
+        transitions = memory.sample(BATCH_SIZE)
     """
     zip(*transitions) unzips the transitions into
     Transition(*) creates new named tuple
@@ -100,9 +104,15 @@ def optimize_model():
         next_state_values[non_final_mask] = q_sp[torch.arange(torch.sum(non_final_mask), device=device), argmax_a_q_sp]
     else:
         next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
-    expected_state_action_values = (next_state_values * GAMMA) + reward_batch
+    expected_state_action_values = (next_state_values * GAMMA) + reward_batch.float()
 
-    loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
+    if PRIORITY:
+        td_errors = state_action_values - expected_state_action_values.unsqueeze(1)
+        td_errors = td_errors.detach().cpu().numpy()
+        memory.update(idxs, td_errors)
+        loss = F.smooth_l1_loss(weights * state_action_values, weights * expected_state_action_values.unsqueeze(1))
+    else:
+        loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
 
     optimizer.zero_grad()
     loss.backward()
@@ -122,7 +132,7 @@ def train(env, n_episodes, history, render=False):
     global epoch
     for episode in range(1, n_episodes + 1):
         obs = env.reset()
-        state = get_state(obs)
+        state = get_state(obs)      # torch.Size([1, 4, 84, 84])
         total_reward = 0.0
         for t in count():
             action = select_action(state)
@@ -142,7 +152,7 @@ def train(env, n_episodes, history, render=False):
 
             reward = torch.tensor([reward], device=device)
 
-            memory.push(state, action.to('cpu'), next_state, reward.to('cpu'))
+            memory.store(state, action.to('cpu'), next_state, reward.to('cpu'))
             state = next_state
 
             if steps_done > INITIAL_MEMORY:
@@ -251,6 +261,8 @@ def get_args_status_string(parser: argparse.ArgumentParser, args: argparse.Names
 if __name__ == '__main__':
     # arguments
     parser = argparse.ArgumentParser(description='Dynamic Pong RL')
+    
+    '''environment args'''
     parser.add_argument('--width', default=160, type=int,
                         help='canvas width (default: 160)')
     parser.add_argument('--height', default=160, type=int,
@@ -275,6 +287,10 @@ if __name__ == '__main__':
                         help='Maximum angle the ball can leave the paddle (default: 45deg)')
     parser.add_argument('--paddle-length', default=45, type=int,
                         help='paddle length (default: 45)')
+    parser.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
+                        help='Probability that the opponent moves in the direction of the ball (default: 0.2)')
+    
+    '''RL args'''
     parser.add_argument('--learning-rate', default=1e-4, type=float,
                         help='learning rate (default: 1e-4)')
     parser.add_argument('--state', default='binary', type=str, choices=['binary', 'color'],
@@ -282,9 +298,9 @@ if __name__ == '__main__':
     parser.add_argument('--network', default='dqn_pong_model',
                         help='choose a network architecture (default: dqn_pong_model)')
     parser.add_argument('--double', default=False, action='store_true',
-                        help='whether use double dqn (default: False)')
+                        help='switch for double dqn (default: False)')
     parser.add_argument('--pretrain', default=False, action='store_true',
-                        help='whether need pretrained network (default: False)')
+                        help='switch for pretrained network (default: False)')
     parser.add_argument('--test', default=False, action='store_true',
                         help='Run the model without training')
     parser.add_argument('--render', default=False, type=str, choices=['human', 'png'],
@@ -293,12 +309,16 @@ if __name__ == '__main__':
                         help="epsilon decay (default: 1000)")
     parser.add_argument('--stepsdecay', default=False, action='store_true',
                         help="switch to use default step decay")
-    parser.add_argument('--replay', default=10000, type=int,
-                        help="change the replay mem size (default: 10000)")
-    parser.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
-                        help='Probability that the opponent moves in the direction of the ball (default: 0.2)')
     parser.add_argument('--episodes', dest='episodes', default=4000, type=int,
                         help='Number of episodes to train for (default: 4000)')
+    parser.add_argument('--replay', default=10000, type=int,
+                        help="change the replay mem size (default: 10000)")
+    parser.add_argument('--priority', default=False, action='store_true',
+                        help='switch for prioritized replay (default: False)')
+    parser.add_argument('--rankbased', default=False, action='store_true',
+                        help='switch for rank-based prioritized replay (omit if proportional)')
+    
+    '''resume args'''
     parser.add_argument('--resume', dest='resume', action='store_true',
                         help='Resume training switch. (omit to start from scratch)')
     parser.add_argument('--checkpoint', default='dqn_pong_model',
@@ -328,6 +348,7 @@ if __name__ == '__main__':
     MEMORY_SIZE = 10 * INITIAL_MEMORY
     DOUBLE = args.double
     STEPSDECAY = args.stepsdecay
+    PRIORITY = args.priority
 
     # number episodes between logging and saving
     LOG_INTERVAL = 20
@@ -409,7 +430,13 @@ if __name__ == '__main__':
         history = []
 
     # initialize replay memory
-    memory = ReplayMemory(MEMORY_SIZE)
+    if PRIORITY:
+        if args.rankbased:
+            memory = PrioritizedReplay(MEMORY_SIZE, rank_based=True)
+        else:
+            memory = PrioritizedReplay(MEMORY_SIZE)
+    else:
+        memory = ReplayMemory(MEMORY_SIZE)
 
     if args.test:  # test
         test(env, 1, policy_net, render=RENDER)

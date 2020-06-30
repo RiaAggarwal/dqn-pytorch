@@ -3,6 +3,7 @@ import argparse
 import os
 import subprocess
 from typing import List, Dict
+import urllib.parse
 
 import yaml
 
@@ -30,7 +31,12 @@ def get_options_strings(experiments: List[Dict], names: List[str]) -> List[str]:
 
 
 def load_job_template() -> Dict:
-    with open('job.yml', 'r') as f:
+    if args.ephemeral:
+        template_path = 'no-storage-job.yml'
+    else:
+        template_path = 'job.yml'
+
+    with open(template_path, 'r') as f:
         job = yaml.load(f, Loader=yaml.FullLoader)
     return job
 
@@ -40,6 +46,17 @@ def filter_git_commands(cmd_template: str) -> str:
     cmd_list = [s.strip() for s in cmd_list]
     cmd_list = [c for c in cmd_list if not c.startswith('git')]
     return '; '.join(cmd_list)
+
+
+def populate_cmd(template, options):
+    if args.command_preview:
+        print(f'python main.py {options}')
+
+    if args.ephemeral:
+        return template.format(user=args.user, branch=args.branch, options=options, job_name=job_name,
+                               git_email=args.git_email, git_user=args.git_user, git_password=args.git_password)
+    else:
+        return template.format(user=args.user, branch=args.branch, options=options)
 
 
 if __name__ == '__main__':
@@ -53,8 +70,21 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--branch', default='master', type=str, help="Branch to run (default: master)")
     parser.add_argument('-f', '--file', default=os.path.join('configs', 'default.yml'), nargs='+', type=str,
                         help="Config file (default: default.yml)")
+    parser.add_argument('-e', '--ephemeral', action='store_true',
+                        help="Use ephemeral storage. Requires setting git options to store results")
+    parser.add_argument('--git-email', dest='git_email', help="email to use with commit")
+    parser.add_argument('--git-user', dest='git_user', help="your GitHub username")
+    parser.add_argument('--git-password', dest='git_password', help="your GitHub password. Use at your own risk.")
     parser.add_argument('-p', '--preview', action='store_true', help="Preview the created job file without running it")
+    parser.add_argument('-cp', '--command-preview', dest='command_preview', action='store_true',
+                        help="Preview the main.py command(s)")
     args = parser.parse_args()
+    if args.ephemeral:
+        if args.git_email is None or args.git_user is None or args.git_password is None:
+            parser.error("--ephemeral requires --git-email, --git-user and --git-password.")
+        # escape special characters
+        args.git_password = urllib.parse.quote(args.git_password)
+        args.git_user = urllib.parse.quote(args.git_user)
 
     if not isinstance(args.file, list):
         args.file = [args.file]
@@ -65,24 +95,32 @@ if __name__ == '__main__':
     job = load_job_template()
 
     # Set job name
-    job['metadata']['name'] = f'{args.user}-' + '-'.join(args.name)
+    job_name = f'{args.user}-' + '-'.join(args.name)
+    job['metadata']['name'] = job_name
 
     # configure the first container
     cmd_template = job['spec']['template']['spec']['containers'][0]['args'][0]
     cmd_template = cmd_template.replace('$', '')
-    cmd = cmd_template.format(user=args.user, branch=args.branch, options=experiments_options[0])
+    cmd = populate_cmd(cmd_template, experiments_options[0])
 
     if len(args.name) > 1:
         commands = cmd.split(';')
         del commands[-1]  # account for trailing semicolon
         commands = [s.strip() for s in commands]
-        for opts in experiments_options[1:]:
-            commands.append(f'python main.py {opts}')
-        cmd = '; '.join(commands[:-len(args.name)]) + '; ' + ' & '.join(commands[-len(args.name):])
-        # Add a process to keep the pod alive while the background jobs are running
-        cmd += ' & wait < <(jobs -p);'
-    else:
-        cmd = cmd_template.format(user=args.user, branch=args.branch, options=experiments_options[0])
+
+        idx = [n for n, s in enumerate(commands) if s.startswith('python')]
+        assert len(idx) == 1, "More than one command starting with python"
+        idx = idx.pop()
+
+        for n, opts in enumerate(experiments_options[1:]):
+            main_cmd = f'python main.py {opts}'
+            commands.insert(n + idx + 1, main_cmd)
+            if args.command_preview:
+                print(main_cmd)
+        cmd = '; '.join(commands[:idx]) + '; '
+        cmd += ' & '.join(commands[idx:idx + len(args.name)])
+        cmd += ' & wait < <(jobs -p); '  # Add a process to keep the pod alive while the background jobs are running
+        cmd += '; '.join(commands[idx + len(args.name):]) + ';'
 
     job['spec']['template']['spec']['containers'][0]['args'][0] = cmd
     job['spec']['template']['spec']['containers'][0]['resources']['limits']['memory'] = f'{round(args.memory * 1.2):d}Gi'
@@ -97,6 +135,8 @@ if __name__ == '__main__':
 
     if args.preview:
         print(job_yaml)
+    elif args.command_preview:
+        pass
     else:
         with open('final.yml', 'w') as f:
             f.write(job_yaml)
