@@ -290,13 +290,13 @@ if __name__ == '__main__':
                           help='paddle length (default: 45)')
     env_args.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
                           help='Probability that the opponent moves in the direction of the ball (default: 0.2)')
+    env_args.add_argument('--state', default='binary', type=str, choices=['binary', 'color'],
+                         help='state representation (default: binary)')
 
     '''RL args'''
     rl_args = parser.add_argument_group("Model", "Reinforcement learning model parameters")
     rl_args.add_argument('--learning-rate', default=1e-4, type=float,
                          help='learning rate (default: 1e-4)')
-    rl_args.add_argument('--state', default='binary', type=str, choices=['binary', 'color'],
-                         help='state representation (default: binary)')
     rl_args.add_argument('--network', default='dqn_pong_model',
                          help='choose a network architecture (default: dqn_pong_model)')
     rl_args.add_argument('--double', default=False, action='store_true',
