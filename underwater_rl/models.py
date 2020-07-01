@@ -64,6 +64,45 @@ class DQN(nn.Module):
         x = F.relu(self.fc4(x.reshape(x.size(0), -1)))
         return self.head(x)
 
+
+class Dueling_DQN(nn.Module):
+    def __init__(self, in_channels=4, n_actions=14):
+        """
+        Initialize Deep Q Network
+
+        Args:
+            in_channels (int): number of input channels
+            n_actions (int): number of outputs
+        """
+        super(DQN, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels, 32, kernel_size=8, stride=4)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
+        self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
+        self.action_fc = nn.Linear(64 * 7 * 7, 512)
+        self.state_value_fc = nn.Linear(64 * 7 * 7, 512)
+        self.action_value = nn.Linear(512, n_actions)
+        self.state_value = nn.Linear(512, 1)
+        #self.head = nn.Linear(512, n_actions)
+
+    def forward(self, x):
+        x = x.float() / 255
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+
+        action_fc = F.relu(self.action_fc(x.reshape(x.size(0), -1)))
+        action_value = self.action_value(action_fc)
+
+        state_value_fc = F.relu(self.state_value_fc(x.reshape(x.size(0), -1)))
+        state_value = self.state_value(state_value_fc)
+
+        action_value_mean = torch.mean(action_value, dim=1, keepdim=True)
+        action_value_center = action_value - action_value_mean
+
+        action_value_out = state_value + action_value_center
+
+        return action_value_out
+
 # ResNet Below
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
     """3x3 convolution with padding"""
@@ -113,7 +152,7 @@ class BasicBlock(nn.Module):
         out = self.relu(out)
 
         return out
-    
+
 class Bottleneck(nn.Module):
     # Bottleneck in torchvision places the stride for downsampling at 3x3 convolution(self.conv2)
     # while original implementation places the stride at the first 1x1 convolution(self.conv1)
@@ -160,7 +199,7 @@ class Bottleneck(nn.Module):
         out += identity
         out = self.relu(out)
 
-        return out    
+        return out
 
 class ResNet(nn.Module):
 
