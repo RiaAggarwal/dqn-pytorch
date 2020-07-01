@@ -274,6 +274,8 @@ if __name__ == '__main__':
                           help='ball size (default: 2.0)')
     env_args.add_argument('--snell', default=3.0, type=float,
                           help='snell speed (default: 3.0)')
+    env_args.add_argument('--no-refraction', dest='no_refraction', default=False, action='store_true',
+                          help='set to disable refraction')
     env_args.add_argument('--snell-width', dest='snell_width', default=40.0, type=float,
                           help='snell speed (default: 40.0)')
     env_args.add_argument('--snell-change', dest='snell_change', default=0, type=float,
@@ -375,6 +377,7 @@ if __name__ == '__main__':
         snell_width=args.snell_width,
         snell_change=args.snell_change,
         snell_visible=args.snell_visible,
+        refract=not args.no_refraction,
         our_paddle_speed=args.paddle_speed,
         their_paddle_speed=args.paddle_speed,
         our_paddle_height=args.paddle_length,

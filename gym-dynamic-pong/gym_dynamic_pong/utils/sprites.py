@@ -168,7 +168,7 @@ class Canvas(Rectangle):
     actions = {k: v for v, k in action_meanings.items()}
 
     def __init__(self, paddle_l: Paddle, paddle_r: Paddle, ball: Ball, snell: Snell, ball_speed: int, height: int,
-                 width: int, their_update_probability: float):
+                 width: int, their_update_probability: float, refract: bool):
 
         super().__init__(height=height, width=width, visibility='none', render_value=0)
         self.pos = self.width / 2, self.height / 2
@@ -187,6 +187,7 @@ class Canvas(Rectangle):
         self.paddle_r = paddle_r
         self.sprites = [self, snell, paddle_l, paddle_r, ball]
 
+        self.refract = refract
         self.we_scored = False
         self.they_scored = False
 
@@ -345,19 +346,20 @@ class Canvas(Rectangle):
         return reward
 
     def _refract(self, obj: Snell, point: Point, edge: Line, trajectory: Line):
-        s0, s1 = self._get_start_and_end_speed(obj, trajectory)
+        if self.refract:
+            s0, s1 = self._get_start_and_end_speed(obj, trajectory)
 
-        angle = edge.angle_to_normal(trajectory)
-        if self._exceeds_critical_angle(angle, s0, s1):
-            # TODO: reflect to arbitrary angle (non-vertical interface)
-            self._reflect(Point(-1, 1), point, trajectory)
-            return
+            angle = edge.angle_to_normal(trajectory)
+            if self._exceeds_critical_angle(angle, s0, s1):
+                # TODO: reflect to arbitrary angle (non-vertical interface)
+                self._reflect(Point(-1, 1), point, trajectory)
+                return
 
-        new_angle = math.asin(s1 / s0 * math.sin(angle))
+            new_angle = math.asin(s1 / s0 * math.sin(angle))
 
-        boundary_angle, new_angle = self._adjust_refraction_to_boundary_angle(edge, new_angle)
-        new_angle = self._adjust_refraction_to_direction_of_incidence(boundary_angle, new_angle, trajectory)
-        self.ball.angle = new_angle
+            boundary_angle, new_angle = self._adjust_refraction_to_boundary_angle(edge, new_angle)
+            new_angle = self._adjust_refraction_to_direction_of_incidence(boundary_angle, new_angle, trajectory)
+            self.ball.angle = new_angle
 
         return self._finish_step_ball(point, trajectory)
 

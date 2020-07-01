@@ -12,8 +12,8 @@ learning_rate: 1e-4
 update_prob: 0.2
 episodes: 4000
 resume:  # comment out to turn off
-checkpoint: ../experiments/2-t2/dqn_pong_model
-history: ../experiments/2-t2/history.p
+checkpoint: ../experiments/5-t2/dqn_pong_model
+history: ../experiments/5-t2/history.p
 network: dqn_pong_model
 #pretrain:  # comment out to turn off
 state: "binary"

@@ -6,6 +6,7 @@ snell: 3.0
 snell_width: 40.0
 snell_change: 0
 snell_visible: "none"
+#no_refraction:  # comment out to turn off
 paddle_speed: 3.0
 paddle_length: 45
 paddle_angle: 45

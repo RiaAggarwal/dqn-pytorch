@@ -24,6 +24,7 @@ class DynamicPongEnv(gym.Env):
                  snell_width=40,
                  snell_change=0,
                  snell_visible=False,
+                 refract=True,
                  our_paddle_speed=3,
                  their_paddle_speed=3,
                  our_paddle_height=45,
@@ -47,6 +48,7 @@ class DynamicPongEnv(gym.Env):
         self.snell_width = snell_width
         self.snell_change = snell_change
         self.snell_visible = snell_visible
+        self.refract = refract
         self.our_paddle_speed = our_paddle_speed
         self.their_paddle_speed = their_paddle_speed
         self.our_paddle_height = our_paddle_height
@@ -171,6 +173,7 @@ class DynamicPongEnv(gym.Env):
             self.height,
             self.width,
             self.their_update_probability,
+            self.refract,
         )
 
     def _init_snell(self, speed: float, change_rate: float):
