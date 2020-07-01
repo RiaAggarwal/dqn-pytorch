@@ -398,25 +398,36 @@ if __name__ == '__main__':
         policy_net = DQN(n_actions=env.action_space.n).to(device)
         target_net = DQN(n_actions=env.action_space.n).to(device)
         target_net.load_state_dict(policy_net.state_dict())
-    elif architecture == 'resnet18':
-        if isinstance(pretrain, bool):
-            policy_net = resnet18(pretrained=pretrain)
-            num_ftrs = policy_net.fc.in_features
-            policy_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
-            policy_net.fc = nn.Linear(num_ftrs, env.action_space.n)
-            policy_net = policy_net.to(device)
-            target_net = resnet18(pretrained=pretrain)
-            num_ftrs = target_net.fc.in_features
-            target_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
-            target_net.fc = nn.Linear(num_ftrs, env.action_space.n)
-            target_net = target_net.to(device)
-            target_net.load_state_dict(policy_net.state_dict())
-        else:
-            raise ValueError('Need a boolean variable for pretrain: True / False')
     else:
-        raise ValueError('''Need an available architecture:
-                            dqn_pong_model,
-                            resnet18''')
+        if architecture == 'resnet18':
+            policy_net = resnet18(pretrained=pretrain)
+            target_net = resnet18(pretrained=pretrain)
+        elif architecture == 'resnet10':
+            policy_net = resnet10()
+            target_net = resnet10()
+        elif architecture == 'resnet12':
+            policy_net = resnet12()
+            target_net = resnet12()
+        elif architecture == 'resnet14':
+            policy_net = resnet14()
+            target_net = resnet14()
+        else:
+            raise ValueError('''Need an available architecture:
+                    dqn_pong_model,
+                    resnet18,
+                    resnet10,
+                    resnet12,
+                    resnet14''')
+                    
+        num_ftrs = policy_net.fc.in_features
+        policy_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        policy_net.fc = nn.Linear(num_ftrs, env.action_space.n)
+        policy_net = policy_net.to(device)
+        num_ftrs = target_net.fc.in_features
+        target_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        target_net.fc = nn.Linear(num_ftrs, env.action_space.n)
+        target_net = target_net.to(device)
+        target_net.load_state_dict(policy_net.state_dict())
 
     # setup optimizer
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)
