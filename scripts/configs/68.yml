@@ -3,7 +3,7 @@ width: 160
 height: 160
 ball: 3.0
 ball_size: 2.0
-snell: 3.0
+snell: 2.0
 snell_width: 40.0
 snell_change: 0
 snell_visible: "none"
