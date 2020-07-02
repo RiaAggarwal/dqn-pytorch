@@ -6,7 +6,7 @@ try:
 except ImportError:
     from torch.utils.model_zoo import load_url as load_state_dict_from_url
 
-__all__ = ['DQNbn', 'DQN', 'ResNet', 'resnet18', 'resnet10', 'resnet12', 'resnet14']
+__all__ = ['DQNbn', 'DQN', 'Dueling_DQN', 'ResNet', 'resnet18', 'resnet10', 'resnet12', 'resnet14']
 
 
 class DQNbn(nn.Module):
@@ -74,7 +74,7 @@ class Dueling_DQN(nn.Module):
             in_channels (int): number of input channels
             n_actions (int): number of outputs
         """
-        super(DQN, self).__init__()
+        super(Dueling_DQN, self).__init__()
         self.conv1 = nn.Conv2d(in_channels, 32, kernel_size=8, stride=4)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
