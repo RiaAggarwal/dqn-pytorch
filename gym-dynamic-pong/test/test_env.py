@@ -375,42 +375,42 @@ class TestStateRendering(unittest.TestCase):
         )
 
     def test_binary_state_shape_is_width_height_3(self):
-        env = self.get_env('binary', False)
+        env = self.get_env('binary', 'none')
         state = env.step(0)[0]
         self.assertEqual((self.height, self.width, 3), state.shape)
 
     def test_binary_rendering_shape_is_width_height_3(self):
-        env = self.get_env('binary', False)
+        env = self.get_env('binary', 'none')
         env.step(0)
         self.assertEqual((self.height, self.width, 3), env.rendering.shape)
 
     def test_binary_state_dtype_is_uint8(self):
-        env = self.get_env('binary', False)
+        env = self.get_env('binary', 'none')
         state = env.step(0)[0]
         self.assertEqual(np.uint8, state.dtype)
 
     def test_binary_rendering_dtype_is_uint8(self):
-        env = self.get_env('binary', False)
+        env = self.get_env('binary', 'none')
         env.step(0)
         self.assertEqual(np.uint8, env.rendering.dtype)
 
     def test_color_state_shape_is_width_height_3(self):
-        env = self.get_env('color', False)
+        env = self.get_env('color', 'none')
         state = env.step(0)[0]
         self.assertEqual((self.height, self.width, 3), state.shape)
 
     def test_color_rendering_shape_is_width_height_3(self):
-        env = self.get_env('color', False)
+        env = self.get_env('color', 'none')
         env.step(0)
         self.assertEqual((self.height, self.width, 3), env.rendering.shape)
 
     def test_color_state_dtype_is_uint8(self):
-        env = self.get_env('color', False)
+        env = self.get_env('color', 'none')
         state = env.step(0)[0]
         self.assertEqual(np.uint8, state.dtype)
 
     def test_color_rendering_dtype_is_uint8(self):
-        env = self.get_env('color', False)
+        env = self.get_env('color', 'none')
         env.step(0)
         self.assertEqual(np.uint8, env.rendering.dtype)
 

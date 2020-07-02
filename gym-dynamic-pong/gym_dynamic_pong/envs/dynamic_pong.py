@@ -23,7 +23,7 @@ class DynamicPongEnv(gym.Env):
                  snell_speed=3,
                  snell_width=40,
                  snell_change=0,
-                 snell_visible=False,
+                 snell_visible='none',
                  refract=True,
                  uniform_speed=False,
                  our_paddle_speed=3,

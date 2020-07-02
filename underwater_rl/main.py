@@ -400,8 +400,8 @@ if __name__ == '__main__':
         target_net = DQN(n_actions=env.action_space.n).to(device)
         target_net.load_state_dict(policy_net.state_dict())
     elif architecture == 'dueling_dqn':
-        policy_net = Dueling_DQN(n_actions=env.action_space.n).to(device)
-        target_net = Dueling_DQN(n_actions=env.action_space.n).to(device)
+        policy_net = DuelingDQN(n_actions=env.action_space.n).to(device)
+        target_net = DuelingDQN(n_actions=env.action_space.n).to(device)
         target_net.load_state_dict(policy_net.state_dict())
     else:
         if architecture == 'resnet18':

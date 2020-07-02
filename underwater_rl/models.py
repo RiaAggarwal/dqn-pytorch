@@ -1,12 +1,13 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 try:
     from torch.hub import load_state_dict_from_url
 except ImportError:
     from torch.utils.model_zoo import load_url as load_state_dict_from_url
 
-__all__ = ['DQNbn', 'DQN', 'Dueling_DQN', 'ResNet', 'resnet18', 'resnet10', 'resnet12', 'resnet14']
+__all__ = ['DQNbn', 'DQN', 'DuelingDQN', 'ResNet', 'resnet18', 'resnet10', 'resnet12', 'resnet14']
 
 
 class DQNbn(nn.Module):
@@ -65,7 +66,7 @@ class DQN(nn.Module):
         return self.head(x)
 
 
-class Dueling_DQN(nn.Module):
+class DuelingDQN(nn.Module):
     def __init__(self, in_channels=4, n_actions=14):
         """
         Initialize Deep Q Network
@@ -74,7 +75,7 @@ class Dueling_DQN(nn.Module):
             in_channels (int): number of input channels
             n_actions (int): number of outputs
         """
-        super(Dueling_DQN, self).__init__()
+        super(DuelingDQN, self).__init__()
         self.conv1 = nn.Conv2d(in_channels, 32, kernel_size=8, stride=4)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
@@ -82,7 +83,7 @@ class Dueling_DQN(nn.Module):
         self.state_value_fc = nn.Linear(64 * 7 * 7, 512)
         self.action_value = nn.Linear(512, n_actions)
         self.state_value = nn.Linear(512, 1)
-        #self.head = nn.Linear(512, n_actions)
+        # self.head = nn.Linear(512, n_actions)
 
     def forward(self, x):
         x = x.float() / 255
@@ -103,11 +104,13 @@ class Dueling_DQN(nn.Module):
 
         return action_value_out
 
+
 # ResNet Below
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
     """3x3 convolution with padding"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
                      padding=dilation, groups=groups, bias=False, dilation=dilation)
+
 
 def conv1x1(in_planes, out_planes, stride=1):
     """1x1 convolution"""
@@ -153,12 +156,15 @@ class BasicBlock(nn.Module):
 
         return out
 
+
 class Bottleneck(nn.Module):
-    # Bottleneck in torchvision places the stride for downsampling at 3x3 convolution(self.conv2)
-    # while original implementation places the stride at the first 1x1 convolution(self.conv1)
-    # according to "Deep residual learning for image recognition"https://arxiv.org/abs/1512.03385.
-    # This variant is also known as ResNet V1.5 and improves accuracy according to
-    # https://ngc.nvidia.com/catalog/model-scripts/nvidia:resnet_50_v1_5_for_pytorch.
+    """
+    Bottleneck in torchvision places the stride for downsampling at 3x3 convolution(self.conv2)
+    while original implementation places the stride at the first 1x1 convolution(self.conv1)
+    according to "Deep residual learning for image recognition"https://arxiv.org/abs/1512.03385.
+    This variant is also known as ResNet V1.5 and improves accuracy according to
+    https://ngc.nvidia.com/catalog/model-scripts/nvidia:resnet_50_v1_5_for_pytorch.
+    """
 
     expansion = 4
 
@@ -200,6 +206,7 @@ class Bottleneck(nn.Module):
         out = self.relu(out)
 
         return out
+
 
 class ResNet(nn.Module):
 
@@ -267,9 +274,8 @@ class ResNet(nn.Module):
                 norm_layer(planes * block.expansion),
             )
 
-        layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample, self.groups,
-                            self.base_width, previous_dilation, norm_layer))
+        layers = [block(self.inplanes, planes, stride, downsample, self.groups,
+                        self.base_width, previous_dilation, norm_layer)]
         self.inplanes = planes * block.expansion
         for _ in range(1, blocks):
             layers.append(block(self.inplanes, planes, groups=self.groups,
@@ -300,9 +306,11 @@ class ResNet(nn.Module):
     def forward(self, x):
         return self._forward_impl(x)
 
+
 model_urls = {
     'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
 }
+
 
 def resnet18(pretrained=False, progress=True, **kwargs):
     r"""ResNet-18 model from
@@ -312,29 +320,35 @@ def resnet18(pretrained=False, progress=True, **kwargs):
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    model = ResNet(BasicBlock, [2,2,2,2], **kwargs)
+    model = ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
     if pretrained:
         state_dict = load_state_dict_from_url(model_urls['resnet18'], progress=progress)
         model.load_state_dict(state_dict)
     return model
 
+
 def resnet10(pretrained=False, progress=True, **kwargs):
     r"""ResNet-10 model from
-    `"Deep Residual Learning for Image Recognition" <https://github.com/osmr/imgclsmob/blob/master/gluon/gluoncv2/models/resnet.py>`_
+    `"Deep Residual Learning for Image Recognition"
+    <https://github.com/osmr/imgclsmob/blob/master/gluon/gluoncv2/models/resnet.py>`_
     """
-    model = ResNet(BasicBlock, [1,1,1,1], **kwargs)
+    model = ResNet(BasicBlock, [1, 1, 1, 1], **kwargs)
     return model
+
 
 def resnet12(pretrained=False, progress=True, **kwargs):
     r"""ResNet-12 model from
-    `"Deep Residual Learning for Image Recognition" <https://github.com/osmr/imgclsmob/blob/master/gluon/gluoncv2/models/resnet.py>`_
+    `"Deep Residual Learning for Image Recognition"
+    <https://github.com/osmr/imgclsmob/blob/master/gluon/gluoncv2/models/resnet.py>`_
     """
-    model = ResNet(BasicBlock, [2,1,1,1], **kwargs)
+    model = ResNet(BasicBlock, [2, 1, 1, 1], **kwargs)
     return model
+
 
 def resnet14(pretrained=False, progress=True, **kwargs):
     r"""ResNet-14 model from
-    `"Deep Residual Learning for Image Recognition" <https://github.com/osmr/imgclsmob/blob/master/gluon/gluoncv2/models/resnet.py>`_
+    `"Deep Residual Learning for Image Recognition"
+    <https://github.com/osmr/imgclsmob/blob/master/gluon/gluoncv2/models/resnet.py>`_
     """
-    model = ResNet(Bottleneck, [1,1,1,1], **kwargs)
+    model = ResNet(Bottleneck, [1, 1, 1, 1], **kwargs)
     return model
