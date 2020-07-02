@@ -27,9 +27,7 @@ from wrappers import *
 from utils import convert_images_to_video
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
-
 warnings.filterwarnings("ignore", category=UserWarning)
-
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
 
@@ -276,6 +274,8 @@ if __name__ == '__main__':
                           help='snell speed (default: 3.0)')
     env_args.add_argument('--no-refraction', dest='no_refraction', default=False, action='store_true',
                           help='set to disable refraction')
+    env_args.add_argument('--uniform-speed', dest='uniform_speed', default=False, action='store_true',
+                          help='set to disable a different ball speed in the Snell layer')
     env_args.add_argument('--snell-width', dest='snell_width', default=40.0, type=float,
                           help='snell speed (default: 40.0)')
     env_args.add_argument('--snell-change', dest='snell_change', default=0, type=float,
@@ -293,7 +293,7 @@ if __name__ == '__main__':
     env_args.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
                           help='Probability that the opponent moves in the direction of the ball (default: 0.2)')
     env_args.add_argument('--state', default='binary', type=str, choices=['binary', 'color'],
-                         help='state representation (default: binary)')
+                          help='state representation (default: binary)')
 
     '''RL args'''
     rl_args = parser.add_argument_group("Model", "Reinforcement learning model parameters")
@@ -378,6 +378,7 @@ if __name__ == '__main__':
         snell_change=args.snell_change,
         snell_visible=args.snell_visible,
         refract=not args.no_refraction,
+        uniform_speed=args.uniform_speed,
         our_paddle_speed=args.paddle_speed,
         their_paddle_speed=args.paddle_speed,
         our_paddle_height=args.paddle_length,
@@ -422,7 +423,7 @@ if __name__ == '__main__':
                     resnet10,
                     resnet12,
                     resnet14''')
-                    
+
         num_ftrs = policy_net.fc.in_features
         policy_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
         policy_net.fc = nn.Linear(num_ftrs, env.action_space.n)

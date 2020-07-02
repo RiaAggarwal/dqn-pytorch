@@ -168,7 +168,7 @@ class Canvas(Rectangle):
     actions = {k: v for v, k in action_meanings.items()}
 
     def __init__(self, paddle_l: Paddle, paddle_r: Paddle, ball: Ball, snell: Snell, ball_speed: int, height: int,
-                 width: int, their_update_probability: float, refract: bool):
+                 width: int, their_update_probability: float, refract: bool, uniform_speed: bool):
 
         super().__init__(height=height, width=width, visibility='none', render_value=0)
         self.pos = self.width / 2, self.height / 2
@@ -187,6 +187,7 @@ class Canvas(Rectangle):
         self.paddle_r = paddle_r
         self.sprites = [self, snell, paddle_l, paddle_r, ball]
 
+        self.uniform_speed = uniform_speed
         self.refract = refract
         self.we_scored = False
         self.they_scored = False
@@ -498,10 +499,13 @@ class Canvas(Rectangle):
         return result
 
     def _get_ball_speed(self) -> float:
-        if self.ball.is_overlapping(self.snell):
-            return self.snell.speed
-        else:
+        if self.uniform_speed:
             return self.default_ball_speed
+        else:
+            if self.ball.is_overlapping(self.snell):
+                return self.snell.speed
+            else:
+                return self.default_ball_speed
 
     def _step_their_paddle(self):
         """
