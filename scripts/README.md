@@ -1,6 +1,6 @@
 # Utility scripts
 
-## run-job.sh
+## run-job.py
 
 ```shell script
 ~/pong-underwater-rl/scripts$ ./run-job.py -h
@@ -142,3 +142,41 @@ Other options:
 - Uses ephemeral storage rather than Ceph
 - based on the template `no-storage-job.yml`
 - because storage is ephemeral, requires git credentials to push results
+
+## grid-search.py
+
+```shell script
+~$ ./grid-search.py -h
+usage: grid-search.py [-h] -u USER [-m MEMORY] [-n NAME] [-o OPTIONS]
+                      [-f FILE] [-p]
+
+Run Grid Search
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -u USER, --user USER  Must correspond to /data/<user>/
+  -m MEMORY, --memory MEMORY
+                        Memory request per experiment (default: 6)
+  -n NAME, --name NAME  Name to prepend to jobs
+  -o OPTIONS, --options OPTIONS
+                        [option value [...][, option value [...]][, ...] e.g.
+                        "--options width 40 80 160, height 10 20 30 40 50"
+  -f FILE, --file FILE  Config file. Values outside the grid search will be
+                        read from here (default: default.yml)
+  -p, --preview         Do not run jobs. Do not delete temporary config files
+                        (view under configs/temp/)
+```
+
+### Usage
+
+Make the script executable:
+```shell script
+chmod +x run-job.py
+```
+
+Create a configuration file the same as for `run-job.py`
+
+Preview the command using the `--preview` switch.
+This generates a series of configuration files to be used by `run-job.py`.
+These can be viewed under `scripts/configs/temp/`.
+Removing the `--preview` switch runs these commands in separate jobs with 5 commands per job.

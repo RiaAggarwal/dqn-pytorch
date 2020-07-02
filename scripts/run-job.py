@@ -72,6 +72,7 @@ if __name__ == '__main__':
                         help="Config file (default: default.yml)")
     parser.add_argument('-e', '--ephemeral', action='store_true',
                         help="Use ephemeral storage. Requires setting git options to store results")
+    parser.add_argument('--job-name', dest='job_name', help="override automatically generated job name")
     parser.add_argument('--git-email', dest='git_email', help="email to use with commit")
     parser.add_argument('--git-user', dest='git_user', help="your GitHub username")
     parser.add_argument('--git-password', dest='git_password', help="your GitHub password. Use at your own risk.")
@@ -90,12 +91,16 @@ if __name__ == '__main__':
         args.file = [args.file]
     assert len(args.name) == len(args.file), "must provide an experiment name for each config file"
 
+
     experiments = load_experiments(args.file)
     experiments_options = get_options_strings(experiments, args.name)
     job = load_job_template()
 
     # Set job name
-    job_name = f'{args.user}-' + '-'.join(args.name)
+    if args.job_name is None:
+        job_name = f'{args.user}-' + '-'.join(args.name)
+    else:
+        job_name = args.job_name
     job['metadata']['name'] = job_name
 
     # configure the first container
