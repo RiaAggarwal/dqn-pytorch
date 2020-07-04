@@ -7,7 +7,7 @@ try:
 except ImportError:
     from torch.utils.model_zoo import load_url as load_state_dict_from_url
 
-__all__ = ['DQNbn', 'DQN', 'DuelingDQN', 'ResNet', 'resnet18', 'resnet10', 'resnet12', 'resnet14']
+__all__ = ['DQNbn', 'DQN', 'DuelingDQN', 'softDQN', 'ResNet', 'resnet18', 'resnet10', 'resnet12', 'resnet14']
 
 
 class DQNbn(nn.Module):
@@ -103,6 +103,36 @@ class DuelingDQN(nn.Module):
         action_value_out = state_value + action_value_center
 
         return action_value_out
+
+
+class softDQN(nn.Module):
+    def __init__(self, in_channels=4, n_actions=14):
+        """
+        Initialize Deep Q Network
+
+        Args:
+            in_channels (int): number of input channels
+            n_actions (int): number of outputs
+        """
+        super(softDQN, self).__init__()
+        self.aplpha = 4
+        self.conv1 = nn.Conv2d(in_channels, 32, kernel_size=8, stride=4)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
+        self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
+        self.fc4 = nn.Linear(7 * 7 * 64, 512)
+        self.head = nn.Linear(512, n_actions)
+
+    def forward(self, x):
+        x = x.float() / 255
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x = F.relu(self.fc4(x.reshape(x.size(0), -1)))
+        return self.head(x)
+
+    def getV(self, q_value):
+        v = self.alpha * torch.log(torch.sum(torch.exp(q_value/self.alpha), dim=1, keepdim=True))
+        return v
 
 
 # ResNet Below

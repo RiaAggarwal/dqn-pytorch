@@ -9,6 +9,7 @@ import shutil
 import time
 import warnings
 from collections import namedtuple
+from torch.distributions import Categorical
 from itertools import count
 
 import gym
@@ -51,6 +52,21 @@ def select_action(state):
         # TODO: should this just go the the CPU?
         return torch.tensor([[random.randrange(env.action_space.n)]], device=device, dtype=torch.long)
 
+def select_softaction(state):
+    # state = torch.FloatTensor(state).unsqueeze(0).to(device)
+    # print('state : ', state)
+    with torch.no_grad():
+        q = policy_net.forward(state.to(device))
+        v = policy_net.getV(q).squeeze()
+        # print('q & v', q, v)
+        dist = torch.exp((q-v)/policy_net.alpha)
+        # print(dist)
+        dist = dist / torch.sum(dist)
+        # print(dist)
+        c = Categorical(dist)
+        a = c.sample()
+    return a.item()
+
 
 def tic():
     return time.time()
@@ -74,7 +90,7 @@ def optimize_model():
     batch.state - tuple of all the states (each state is a tensor)
     batch.next_state - tuple of all the next states (each state is a tensor)
     batch.reward - tuple of all the rewards (each reward is a float)
-    batch.action - tuple of all the actions (each action is an int)    
+    batch.action - tuple of all the actions (each action is an int)
     """
     batch = Transition(*zip(*transitions))
 
@@ -243,7 +259,7 @@ def save_checkpoint(store_dir):
 def get_args_status_string(parser: argparse.ArgumentParser, args: argparse.Namespace) -> str:
     """
     Returns a formatted string of the passed arguments.
-    
+
     :param parser: The `argparse.ArgumentParser` object to read from
     :param args: The values of the parsed arguments from `parser.parse_args()`
     :return: "--width 160 --height 160 --ball 3.0 ..."
