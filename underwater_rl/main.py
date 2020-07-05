@@ -116,6 +116,9 @@ def optimize_model():
         argmax_a_q_sp = policy_net(non_final_next_states).max(1)[1]
         q_sp = target_net(non_final_next_states).detach()
         next_state_values[non_final_mask] = q_sp[torch.arange(torch.sum(non_final_mask), device=device), argmax_a_q_sp]
+    elif architecture == 'soft_dqn':
+        next_state_action_values[non_final_mask] = target_net(non_final_next_states).detach()
+        next_state_values[non_final_mask] = target_net.getV(next_state_action_values[non_final_mask]).detach()
     else:
         next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch.float()
@@ -125,6 +128,7 @@ def optimize_model():
         td_errors = td_errors.detach().cpu().numpy()
         memory.update(idxs, td_errors)
         loss = F.smooth_l1_loss(weights * state_action_values, weights * expected_state_action_values.unsqueeze(1))
+
     else:
         loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
 
@@ -149,7 +153,10 @@ def train(env, n_episodes, history, render=False):
         state = get_state(obs)  # torch.Size([1, 4, 84, 84])
         total_reward = 0.0
         for t in count():
-            action = select_action(state)
+            if architecture == 'soft_dqn':
+                action = select_softaction(state)
+            else:
+                action = select_action(state)
 
             if render:
                 save_dir = os.path.join(args.store_dir, 'video')
@@ -204,6 +211,7 @@ def test(env, n_episodes, policy, render=True):
         state = get_state(obs)
         total_reward = 0.0
         for t in count():
+
             action = policy(state.to(device)).max(1)[1].view(1, 1)
 
             if render:
