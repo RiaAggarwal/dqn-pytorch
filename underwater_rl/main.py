@@ -62,10 +62,10 @@ def select_softaction(state):
         dist = torch.exp((q-v)/policy_net.alpha)
         # print(dist)
         dist = dist / torch.sum(dist)
-        # print(dist)
+        #print(dist)
         c = Categorical(dist)
         a = c.sample()
-    return a.item()
+    return torch.tensor([[a.item()]], device=device, dtype=torch.long)
 
 
 def tic():
@@ -422,6 +422,10 @@ if __name__ == '__main__':
     if architecture == 'dqn_pong_model':
         policy_net = DQN(n_actions=env.action_space.n).to(device)
         target_net = DQN(n_actions=env.action_space.n).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+    elif architecture == 'soft_dqn':
+        policy_net = softDQN(n_actions=env.action_space.n).to(device)
+        target_net = softDQN(n_actions=env.action_space.n).to(device)
         target_net.load_state_dict(policy_net.state_dict())
     elif architecture == 'dueling_dqn':
         policy_net = DuelingDQN(n_actions=env.action_space.n).to(device)
