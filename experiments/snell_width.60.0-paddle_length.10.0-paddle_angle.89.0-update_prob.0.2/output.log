@@ -1,0 +1,9 @@
+2020-07-01 22:22:33,981	INFO	--width 160 --height 160 --ball 1.0 --ball-size 2.0 --snell 1.0 --snell-width 60.0 --snell-change 0.0 --snell-visible none --paddle-speed 1.0 --paddle-angle 89.0 --paddle-length 10.0 --update-prob 0.2 --state binary --learning-rate 0.0001 --network dqn_pong_model --render False --epsdecay 1000 --episodes 4000 --replay 10000 --checkpoint dqn_pong_model --history history.p --store-dir ../experiments/snell_width.60.0-paddle_length.10.0-paddle_angle.89.0-update_prob.0.2 
+2020-07-01 22:22:33,981	INFO	Device: cuda
+2020-07-01 22:24:21,704	INFO	Total steps: 11192	Episode: 20/538	Avg reward: -18.40	Avg steps: 558
+2020-07-01 22:30:49,719	INFO	Total steps: 22456	Episode: 40/454	Avg reward: -18.45	Avg steps: 562
+2020-07-01 22:37:47,090	INFO	Total steps: 34547	Episode: 60/868	Avg reward: -18.30	Avg steps: 603
+2020-07-01 22:44:59,911	INFO	Total steps: 47071	Episode: 80/798	Avg reward: -17.65	Avg steps: 625
+2020-07-01 22:52:27,011	INFO	Total steps: 59905	Episode: 100/534	Avg reward: -17.85	Avg steps: 640
+2020-07-01 23:00:21,785	INFO	Total steps: 73457	Episode: 120/912	Avg reward: -17.15	Avg steps: 676
+2020-07-01 23:08:21,674	INFO	Total steps: 87229	Episode: 140/638	Avg reward: -16.70	Avg steps: 687
