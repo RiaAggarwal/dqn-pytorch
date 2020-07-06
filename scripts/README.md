@@ -180,3 +180,17 @@ Preview the command using the `--preview` switch.
 This generates a series of configuration files to be used by `run-job.py`.
 These can be viewed under `scripts/configs/temp/`.
 Removing the `--preview` switch runs these commands in separate jobs with 5 commands per job.
+
+## restart-job.sh
+
+Restarts a failed job.
+
+### Usage
+
+```shell script
+chmod +x restart-job.sh 
+```
+
+```shell script
+./restart-job.sh job-name
+```
