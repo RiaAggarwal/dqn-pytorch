@@ -1,8 +1,9 @@
 import unittest
 
-from utils.dashboard.data_loader import get_multi_index_history_df, get_rewards_history_df, get_experiments
+from utils.dashboard.data_loader import get_multi_index_history_df, get_rewards_history_df, get_experiments, \
+    get_all_grid_search_params
 
-experiments = ['baseline-1', 'snell-4', 'snell-5']
+experiments = ['4-t2', '5-t2']
 
 
 class TestUtils(unittest.TestCase):
@@ -21,6 +22,10 @@ class TestUtils(unittest.TestCase):
         for e in exp:
             self.assertIsInstance(e, dict)
             self.assertEqual(['label', 'value'], list(e.keys()))
+
+    def test_get_all_grid_search_params_returns_a_dict(self):
+        param_dict = get_all_grid_search_params()
+        self.assertIsInstance(param_dict, dict)
 
 
 if __name__ == '__main__':
