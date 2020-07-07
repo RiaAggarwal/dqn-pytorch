@@ -23,7 +23,7 @@ def convert_images_to_video(image_dir: str, save_dir: str):
         size = (width, height)
         img_array.append(img)
 
-    out = cv2.VideoWriter(os.path.join(save_dir, 'pong.mp4'), cv2.VideoWriter_fourcc(*'DIVX'), 30, size)
+    out = cv2.VideoWriter(os.path.join(save_dir, 'pong.mp4'), cv2.VideoWriter_fourcc(*'mp4v'), 30, size)
 
     for i in range(len(img_array)):
         out.write(img_array[i])

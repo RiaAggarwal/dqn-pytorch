@@ -5,6 +5,9 @@ from typing import List, Tuple, Dict
 
 import pandas as pd
 
+__all__ = ['get_grid_searches', 'get_experiments', 'get_rewards_history_df', 'get_steps_history_df',
+           'get_parameters_df', 'get_grid_search_params', 'get_grid_search_experiments', 'get_all_grid_search_params']
+
 root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
 
@@ -23,15 +26,97 @@ def load_history(experiment_dir: str) -> List[Tuple[float, int]]:
     return history
 
 
-def get_experiments() -> List[Dict]:
+def get_experiments_list() -> List[str]:
     """
     Get all experiments in the experiments directory
 
     :return: List of experiments
     """
     experiments_root = os.path.join(root_dir, 'experiments')
-    experiments = [{'label': e, 'value': e} for e in os.listdir(experiments_root)]
+    experiments = os.listdir(experiments_root)
+    return sorted(experiments)
+
+
+def get_grid_search_experiments_list(search: str) -> List[str]:
+    """
+    Get all experiments in the search directory
+
+    :return: List of experiments
+    """
+    experiments_root = os.path.join(root_dir, 'grid-search', search)
+    experiments = os.listdir(experiments_root)
+    return sorted(experiments)
+
+
+def get_experiments() -> List[Dict]:
+    """
+    Get all experiments in the experiments directory formatted for use in a plotly dropdown
+
+    :return: List of experiments
+    """
+    return _get_directory_listing_for_dash_dropdown('experiments')
+
+
+def get_all_grid_search_params() -> Dict[str, Dict[str, List]]:
+    """
+
+    :return: e.g. {'experiment1': {'param1': [1, 2, 3], 'param2': [2, 3]},
+                   'experiment2': {'param1': [2, 3, 4], 'param3': [1]}
+    """
+    result = dict()
+    for search in get_grid_searches():
+        experiments = get_grid_search_experiments_list(search['label'])
+        result[search['label']] = get_grid_search_params(experiments)
+    return result
+
+
+def get_grid_search_params(experiments) -> Dict[str, List]:
+    """
+    Get a dictionary of parameters and values used in the grid search
+
+    :param experiments: experiments in the grid search
+    :return: e.g. {'param1': [1, 2, 3],
+                   'param2': [1]}
+    """
+    params = [i.split('.')[0] for i in experiments[0].split('-')]
+    result = {p: set() for p in params}
+    for ex in experiments:
+        for k, v in result.items():
+            value = re.findall(rf'(?<={k}\.)[\da-zA-z\.]+(?=-|$)', ex)[0]
+            v.add(value)
+    return {k: sorted(list(v)) for k, v in result.items()}
+
+
+def get_grid_searches() -> List[Dict]:
+    """
+    Get all searches in the grid-searches directory formatted for use in a plotly dropdown
+
+    :return: List of grid searches
+    """
+    return _get_directory_listing_for_dash_dropdown('grid-search')
+
+
+def get_grid_search_experiments(grid_search: str) -> List[str]:
+    """
+    List of all grid search experiments in a particular search
+
+    :param grid_search: directory name
+    :return: list of experiments
+    """
+    return _get_directory_listing(os.path.join('grid-search', grid_search))
+
+
+def _get_directory_listing_for_dash_dropdown(directory) -> List[Dict]:
+    """
+    Get all sub-directories in `directory` for use in a plotly dropdown
+    """
+    experiments = [{'label': e, 'value': e} for e in _get_directory_listing(directory)]
     return sorted(experiments, key=lambda x: x['label'])
+
+
+def _get_directory_listing(directory) -> List[str]:
+    path = os.path.join(root_dir, directory)
+    return os.listdir(path)
 
 
 def get_multi_index_history_df(experiments: List[str]) -> pd.DataFrame:
