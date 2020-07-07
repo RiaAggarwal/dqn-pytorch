@@ -2,3 +2,4 @@
 __pycache__
 dqn_pong_model
 cache/
+*.ipynb
