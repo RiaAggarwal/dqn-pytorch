@@ -14,18 +14,16 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from dash.dependencies import Input, Output, State
+import numpy as np
 
 try:
     from .utils import *
     from .data_loader import *
+    from ..dashboard import app
 except ImportError:
     from utils import *
     from data_loader import *
-
-# Initialize app
-app = dash.Dash(__name__, meta_tags=[{"name": "viewport", "content": "width=device-width"}],
-                external_stylesheets=[dbc.themes.BOOTSTRAP],
-                suppress_callback_exceptions=False)
+    from __init__ import app
 
 grid_searches = get_grid_searches()
 grid_search_params = get_all_grid_search_params()
@@ -332,10 +330,10 @@ def make_grid_search_plot(grid_search, axis_params, *args):
             p = s['props']['id'].replace(grid_search, '').split('-')[0]
             slider_params[p] = lookup[str(v)]
 
-    if grid_search is None:
+    if not grid_search:
         return get_empty_sunburst("Select a grid search")
 
-    if axis_params is None:
+    if not axis_params:
         if not slider_params:
             return get_empty_sunburst("Select a grid search")
         else:
@@ -355,25 +353,39 @@ def make_grid_search_plot(grid_search, axis_params, *args):
                 y.append(None)
 
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=x, y=y, mode='markers'))
+        fig.add_trace(go.Scatter(x=x, y=y, mode='markers',
+                                 marker=dict(color=y, colorscale='Viridis', size=16)))
         fig.update_layout(xaxis_title=p, yaxis_title="Average Final Reward")
         return fig
     elif len(axis_params) == 2:  # 2-axis plot
-        x = []
-        y = []
-        reward = []
-        for vx in param_dict[axis_params[0]]:
+        x = [float(v) for v in param_dict[axis_params[0]]]
+        y = [float(v) for v in param_dict[axis_params[1]]]
+        reward = np.zeros((len(param_dict[axis_params[0]]), len(param_dict[axis_params[1]])))
+        for i, vx in enumerate(param_dict[axis_params[0]]):
             slider_params[axis_params[0]] = vx
-            for vy in param_dict[axis_params[1]]:
+            for j, vy in enumerate(param_dict[axis_params[1]]):
                 slider_params[axis_params[1]] = vy
-                x.append(float(vx))
-                y.append(float(vy))
-                reward.append(float(get_grid_search_results_value(grid_search, **slider_params)))
+                try:
+                    reward[i, j] = (float(get_grid_search_results_value(grid_search, **slider_params)))
+                except KeyError:
+                    reward[i, j] = None
         fig = go.Figure()
-        fig.add_trace(go.Scatter3d(x=x, y=y, z=reward, mode='markers',
-                                   marker=dict(color=reward, colorscale='Viridis')))
-        fig.update_layout(xaxis_title=axis_params[0], yaxis_title=axis_params[1])
+        fig.add_trace(go.Surface(x=x, y=y, z=reward,
+                                 hovertemplate=f"{axis_params[0]}: %{{x}}<br>{axis_params[1]}: %{{y}}<br>Reward: %{{z}}"))
+        fig.update_traces(contours_z=dict(show=True, usecolormap=True,
+                                          highlightcolor="limegreen", project_z=True))
+        fig.update_layout(scene=dict(xaxis_title=axis_params[0],
+                                     yaxis_title=axis_params[1],
+                                     zaxis_title="Average Reward",
+                                     camera=dict(
+                                        up=dict(x=0, y=0, z=1),
+                                        center=dict(x=0, y=0, z=-0.5),
+                                        eye=dict(x=1.25, y=1.25, z=1.1)
+                                    )),
+                          margin=dict(l=0, r=0, b=0, t=0))
         return fig
+    elif len(axis_params) > 2:
+        return get_empty_sunburst("Select 2 or fewer parameters")
 
 
 @fig_formatter(t=50)
@@ -390,7 +402,7 @@ def get_step_plot(experiments: List[str], moving_avg_len) -> go.Figure:
 
 if __name__ == '__main__':
     # noinspection PyTypeChecker
-    app.run_server(debug=True,
+    app.run_server(debug=False,
                    dev_tools_hot_reload=False,
                    host=os.getenv("HOST", "127.0.0.1"),
                    # host=os.getenv("HOST", "192.168.1.10"),

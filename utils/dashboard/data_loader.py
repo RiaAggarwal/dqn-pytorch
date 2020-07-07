@@ -4,7 +4,10 @@ import re
 from typing import List, Tuple, Dict
 
 import pandas as pd
-from flask_caching import Cache
+try:
+    from ..dashboard import cache
+except ImportError:
+    from __init__ import cache
 
 __all__ = ['get_grid_searches', 'get_experiments', 'get_rewards_history_df', 'get_steps_history_df',
            'get_parameters_df', 'get_grid_search_params', 'get_grid_search_experiments', 'get_all_grid_search_params',
@@ -13,6 +16,7 @@ __all__ = ['get_grid_searches', 'get_experiments', 'get_rewards_history_df', 'ge
 root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
 
+@cache.memoize()
 def load_history(experiment_dir: str) -> List[Tuple[float, int]]:
     """
     Load the pickled history
@@ -28,6 +32,7 @@ def load_history(experiment_dir: str) -> List[Tuple[float, int]]:
     return history
 
 
+@cache.memoize()
 def get_experiments_list() -> List[str]:
     """
     Get all experiments in the experiments directory
@@ -39,6 +44,7 @@ def get_experiments_list() -> List[str]:
     return sorted(experiments)
 
 
+@cache.memoize()
 def get_grid_search_results_value(search: str, **kwargs) -> str:
     experiments, series = get_grid_search_results_series(search)
 
@@ -50,6 +56,7 @@ def get_grid_search_results_value(search: str, **kwargs) -> str:
     return series[get_grid_search_results_key(param_assignment)].item()
 
 
+@cache.memoize()
 def get_grid_search_results_series(search) -> Tuple[List, pd.Series]:
     experiments = get_grid_search_experiments_list(search)
     df = _get_history_df(experiments, os.path.join('grid-search', search), 0)
@@ -58,6 +65,7 @@ def get_grid_search_results_series(search) -> Tuple[List, pd.Series]:
     return experiments, series
 
 
+@cache.memoize()
 def get_grid_search_results_key(param_assignment: Dict):
     key = ''
     for p, v in param_assignment.items():
@@ -65,6 +73,7 @@ def get_grid_search_results_key(param_assignment: Dict):
     return key[:-1]
 
 
+@cache.memoize()
 def get_grid_search_experiments_list(search: str) -> List[str]:
     """
     Get all experiments in the search directory
@@ -76,6 +85,7 @@ def get_grid_search_experiments_list(search: str) -> List[str]:
     return sorted(experiments)
 
 
+@cache.memoize()
 def get_experiments() -> List[Dict]:
     """
     Get all experiments in the experiments directory formatted for use in a plotly dropdown
@@ -85,6 +95,7 @@ def get_experiments() -> List[Dict]:
     return _get_directory_listing_for_dash_dropdown('experiments')
 
 
+@cache.memoize()
 def get_all_grid_search_params() -> Dict[str, Dict[str, List]]:
     """
 
@@ -98,6 +109,7 @@ def get_all_grid_search_params() -> Dict[str, Dict[str, List]]:
     return result
 
 
+@cache.memoize()
 def get_grid_search_params(experiments) -> Dict[str, List]:
     """
     Get a dictionary of parameters and values used in the grid search
@@ -115,6 +127,7 @@ def get_grid_search_params(experiments) -> Dict[str, List]:
     return {k: sorted(list(v)) for k, v in result.items()}
 
 
+@cache.memoize()
 def get_grid_searches() -> List[Dict]:
     """
     Get all searches in the grid-searches directory formatted for use in a plotly dropdown
@@ -124,6 +137,7 @@ def get_grid_searches() -> List[Dict]:
     return _get_directory_listing_for_dash_dropdown('grid-search')
 
 
+@cache.memoize()
 def get_grid_search_experiments(grid_search: str) -> List[str]:
     """
     List of all grid search experiments in a particular search
@@ -134,6 +148,7 @@ def get_grid_search_experiments(grid_search: str) -> List[str]:
     return _get_directory_listing(os.path.join('grid-search', grid_search))
 
 
+@cache.memoize()
 def _get_directory_listing_for_dash_dropdown(directory) -> List[Dict]:
     """
     Get all sub-directories in `directory` for use in a plotly dropdown
@@ -142,11 +157,13 @@ def _get_directory_listing_for_dash_dropdown(directory) -> List[Dict]:
     return sorted(experiments, key=lambda x: x['label'])
 
 
+@cache.memoize()
 def _get_directory_listing(directory) -> List[str]:
     path = os.path.join(root_dir, directory)
     return os.listdir(path)
 
 
+@cache.memoize()
 def get_multi_index_history_df(experiments: List[str]) -> pd.DataFrame:
     """
     example:
@@ -177,6 +194,7 @@ def get_multi_index_history_df(experiments: List[str]) -> pd.DataFrame:
     return df
 
 
+@cache.memoize()
 def _get_history_df(experiments, source, selector: int):
     df = pd.DataFrame()
     for e in experiments:
@@ -221,6 +239,7 @@ def get_steps_history_df(experiments: List[str], moving_avg_len=1) -> pd.DataFra
     return get_moving_average(df, moving_avg_len)
 
 
+@cache.memoize()
 def get_parameters_df(experiments: List[str]):
     df = pd.DataFrame()
     for e in experiments:
