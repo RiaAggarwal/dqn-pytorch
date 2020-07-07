@@ -360,15 +360,15 @@ def make_grid_search_plot(grid_search, axis_params, *args):
     elif len(axis_params) == 2:  # 2-axis plot
         x = [float(v) for v in param_dict[axis_params[0]]]
         y = [float(v) for v in param_dict[axis_params[1]]]
-        reward = np.zeros((len(param_dict[axis_params[0]]), len(param_dict[axis_params[1]])))
+        reward = np.zeros((len(param_dict[axis_params[1]]), len(param_dict[axis_params[0]])))
         for i, vx in enumerate(param_dict[axis_params[0]]):
             slider_params[axis_params[0]] = vx
             for j, vy in enumerate(param_dict[axis_params[1]]):
                 slider_params[axis_params[1]] = vy
                 try:
-                    reward[i, j] = (float(get_grid_search_results_value(grid_search, **slider_params)))
+                    reward[j, i] = (float(get_grid_search_results_value(grid_search, **slider_params)))
                 except KeyError:
-                    reward[i, j] = None
+                    reward[j, i] = None
         fig = go.Figure()
         fig.add_trace(go.Surface(x=x, y=y, z=reward,
                                  hovertemplate=f"{axis_params[0]}: %{{x}}<br>{axis_params[1]}: %{{y}}<br>Reward: %{{z}}"))
