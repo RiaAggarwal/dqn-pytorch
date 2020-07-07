@@ -4,9 +4,11 @@ import re
 from typing import List, Tuple, Dict
 
 import pandas as pd
+from flask_caching import Cache
 
 __all__ = ['get_grid_searches', 'get_experiments', 'get_rewards_history_df', 'get_steps_history_df',
-           'get_parameters_df', 'get_grid_search_params', 'get_grid_search_experiments', 'get_all_grid_search_params']
+           'get_parameters_df', 'get_grid_search_params', 'get_grid_search_experiments', 'get_all_grid_search_params',
+           'get_grid_search_results_value']
 
 root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
@@ -35,6 +37,32 @@ def get_experiments_list() -> List[str]:
     experiments_root = os.path.join(root_dir, 'experiments')
     experiments = os.listdir(experiments_root)
     return sorted(experiments)
+
+
+def get_grid_search_results_value(search: str, **kwargs) -> str:
+    experiments, series = get_grid_search_results_series(search)
+
+    params = [i.split('.')[0] for i in experiments[0].split('-')]
+    param_assignment = dict()
+    for p in params:
+        param_assignment[p] = kwargs.get(p)
+
+    return series[get_grid_search_results_key(param_assignment)].item()
+
+
+def get_grid_search_results_series(search) -> Tuple[List, pd.Series]:
+    experiments = get_grid_search_experiments_list(search)
+    df = _get_history_df(experiments, os.path.join('grid-search', search), 0)
+    df = get_moving_average(df, 100)
+    series = df.iloc[-1]
+    return experiments, series
+
+
+def get_grid_search_results_key(param_assignment: Dict):
+    key = ''
+    for p, v in param_assignment.items():
+        key += f'{p}.{v}-'
+    return key[:-1]
 
 
 def get_grid_search_experiments_list(search: str) -> List[str]:
@@ -149,10 +177,10 @@ def get_multi_index_history_df(experiments: List[str]) -> pd.DataFrame:
     return df
 
 
-def _get_history_df(experiments, selector: int):
+def _get_history_df(experiments, source, selector: int):
     df = pd.DataFrame()
     for e in experiments:
-        history = load_history(os.path.join(root_dir, 'experiments', e))
+        history = load_history(os.path.join(root_dir, source, e))
         rewards = [v[selector] for v in history]
 
         temp_df = pd.DataFrame(rewards, columns=[e])
@@ -177,7 +205,7 @@ def get_rewards_history_df(experiments: List[str], moving_avg_len=1) -> pd.DataF
     :param experiments: List of experiments.
     :return: `pd.DataFrame`
     """
-    df = _get_history_df(experiments, 0)
+    df = _get_history_df(experiments, 'experiments', 0)
     return get_moving_average(df, moving_avg_len)
 
 
@@ -189,7 +217,7 @@ def get_steps_history_df(experiments: List[str], moving_avg_len=1) -> pd.DataFra
     :param experiments: List of experiments.
     :return: `pd.DataFrame`
     """
-    df = _get_history_df(experiments, 1)
+    df = _get_history_df(experiments, 'experiments', 1)
     return get_moving_average(df, moving_avg_len)
 
 

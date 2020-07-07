@@ -244,10 +244,12 @@ def assign_slider_text_update_callback(grid_search: str, param: str) -> None:
 
 # Construct slider inputs and assign callbacks to slider labels
 slider_inputs = []
+slider_marks = []
 for gs, param_dict in grid_search_params.items():
     for p in param_dict.keys():
         assign_slider_text_update_callback(gs, p)
         slider_inputs.append(Input(gs + p + '-slider', 'value'))
+        slider_marks.append(State(gs + p + '-slider', 'marks'))
 
 
 @app.callback(Output('grid-search-params-selector-div', 'children'),
@@ -310,6 +312,68 @@ def make_rewards_plot(experiments: List[str], moving_avg_window: int) -> go.Figu
     else:
         fig = get_step_plot(experiments, moving_avg_window)
     return fig
+
+
+@app.callback(
+    Output('grid-search-plot', 'figure'),
+    [Input('grid-search-selector', 'value'),
+     Input('grid-search-params-selector', 'value')] + slider_inputs,
+    slider_marks + [State('grid-search-sliders', 'children')]
+)
+def make_grid_search_plot(grid_search, axis_params, *args):
+    args = list(args)
+    state = args.pop()
+    slider_values = args[:len(args) // 2]
+    slider_value_lookup = args[len(args) // 2:]
+
+    slider_params = dict()
+    for v, lookup, s in zip(slider_values, slider_value_lookup, state):
+        if s['props']['style'] is None:
+            p = s['props']['id'].replace(grid_search, '').split('-')[0]
+            slider_params[p] = lookup[str(v)]
+
+    if grid_search is None:
+        return get_empty_sunburst("Select a grid search")
+
+    if axis_params is None:
+        if not slider_params:
+            return get_empty_sunburst("Select a grid search")
+        else:
+            return get_empty_sunburst(get_grid_search_results_value(grid_search, **slider_params))
+
+    # Create actual plot
+    if len(axis_params) == 1:  # single axis plot
+        p = axis_params[0]
+        x = [float(v) for v in param_dict[p]]
+
+        y = []
+        for v in param_dict[p]:
+            slider_params[p] = v
+            try:
+                y.append(float(get_grid_search_results_value(grid_search, **slider_params)))
+            except KeyError:
+                y.append(None)
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=x, y=y, mode='markers'))
+        fig.update_layout(xaxis_title=p, yaxis_title="Average Final Reward")
+        return fig
+    elif len(axis_params) == 2:  # 2-axis plot
+        x = []
+        y = []
+        reward = []
+        for vx in param_dict[axis_params[0]]:
+            slider_params[axis_params[0]] = vx
+            for vy in param_dict[axis_params[1]]:
+                slider_params[axis_params[1]] = vy
+                x.append(float(vx))
+                y.append(float(vy))
+                reward.append(float(get_grid_search_results_value(grid_search, **slider_params)))
+        fig = go.Figure()
+        fig.add_trace(go.Scatter3d(x=x, y=y, z=reward, mode='markers',
+                                   marker=dict(color=reward, colorscale='Viridis')))
+        fig.update_layout(xaxis_title=axis_params[0], yaxis_title=axis_params[1])
+        return fig
 
 
 @fig_formatter(t=50)
