@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+from copy import deepcopy
 import logging
 import math
 import os
@@ -22,10 +23,16 @@ import torch.nn.functional as F
 
 sys.path.append(os.path.dirname(__file__))
 
-from memory import ReplayMemory, PrioritizedReplay
-from models import *
-from wrappers import *
-from utils import convert_images_to_video
+try:
+    from .memory import ReplayMemory, PrioritizedReplay
+    from .models import *
+    from .wrappers import *
+    from utils import convert_images_to_video
+except ImportError:
+    from memory import ReplayMemory, PrioritizedReplay
+    from models import *
+    from wrappers import *
+    from utils import convert_images_to_video
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -280,6 +287,23 @@ def get_args_status_string(parser: argparse.ArgumentParser, args: argparse.Names
     return s
 
 
+def create_networks(architecture, pretrain):
+    models = {
+        'dqn_pong_model': DQN,
+        'soft_dqn': softDQN,
+        'dueling_dqn': DuelingDQN,
+        'resnet18': resnet18,
+        'resnet10': resnet10,
+        'resnet12': resnet12,
+        'resnet14': resnet14,
+    }
+    policy_net = models[architecture](n_actions=env.action_space.n, pretrained=pretrain).to(device)
+    target_net = models[architecture](n_actions=env.action_space.n, pretrained=pretrain).to(device)
+    target_net.load_state_dict(policy_net.state_dict())
+
+    return policy_net, target_net
+
+
 if __name__ == '__main__':
     # arguments
     parser = argparse.ArgumentParser(description='Dynamic Pong RL')
@@ -324,6 +348,8 @@ if __name__ == '__main__':
     rl_args.add_argument('--learning-rate', default=1e-4, type=float,
                          help='learning rate (default: 1e-4)')
     rl_args.add_argument('--network', default='dqn_pong_model',
+                         choices=['dqn_pong_model', 'soft_dqn', 'dueling_dqn', 'resnet18', 'resnet10', 'resnet12',
+                                  'resnet14', 'lstm'],
                          help='choose a network architecture (default: dqn_pong_model)')
     rl_args.add_argument('--double', default=False, action='store_true',
                          help='switch for double dqn (default: False)')
@@ -418,49 +444,7 @@ if __name__ == '__main__':
 
     # create networks
     architecture = args.network
-    pretrain = args.pretrain
-    if architecture == 'dqn_pong_model':
-        policy_net = DQN(n_actions=env.action_space.n).to(device)
-        target_net = DQN(n_actions=env.action_space.n).to(device)
-        target_net.load_state_dict(policy_net.state_dict())
-    elif architecture == 'soft_dqn':
-        policy_net = softDQN(n_actions=env.action_space.n).to(device)
-        target_net = softDQN(n_actions=env.action_space.n).to(device)
-        target_net.load_state_dict(policy_net.state_dict())
-    elif architecture == 'dueling_dqn':
-        policy_net = DuelingDQN(n_actions=env.action_space.n).to(device)
-        target_net = DuelingDQN(n_actions=env.action_space.n).to(device)
-        target_net.load_state_dict(policy_net.state_dict())
-    else:
-        if architecture == 'resnet18':
-            policy_net = resnet18(pretrained=pretrain)
-            target_net = resnet18(pretrained=pretrain)
-        elif architecture == 'resnet10':
-            policy_net = resnet10()
-            target_net = resnet10()
-        elif architecture == 'resnet12':
-            policy_net = resnet12()
-            target_net = resnet12()
-        elif architecture == 'resnet14':
-            policy_net = resnet14()
-            target_net = resnet14()
-        else:
-            raise ValueError('''Need an available architecture:
-                    dqn_pong_model,
-                    resnet18,
-                    resnet10,
-                    resnet12,
-                    resnet14''')
-
-        num_ftrs = policy_net.fc.in_features
-        policy_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        policy_net.fc = nn.Linear(num_ftrs, env.action_space.n)
-        policy_net = policy_net.to(device)
-        num_ftrs = target_net.fc.in_features
-        target_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        target_net.fc = nn.Linear(num_ftrs, env.action_space.n)
-        target_net = target_net.to(device)
-        target_net.load_state_dict(policy_net.state_dict())
+    policy_net, target_net = create_networks(args.network, args.pretrain)
 
     # setup optimizer
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)
