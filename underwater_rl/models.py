@@ -66,6 +66,33 @@ class DQN(nn.Module):
         return self.head(x)
 
 
+class DRQN(DQN):
+    """
+    Deep Recurrent Q Network
+
+    Replaces the FC layer with a LSTM layer
+    """
+    def __init__(self, in_channels=1, n_actions=14, **kwargs):
+        super(DRQN, self).__init__(in_channels=in_channels, n_actions=n_actions, **kwargs)
+        self.hidden_dim = 512
+        self.lstm = nn.LSTM(7 * 7 * 64, self.hidden_dim)
+        self.zero_hidden()
+
+    def zero_hidden(self):
+        self.hidden = (torch.randn(1, 1, self.hidden_dim), torch.randn(1, 1, self.hidden_dim))
+
+    def forward(self, x):
+        x = x.float() / 255
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x, self.hidden = self.lstm(x.reshape(x.size(0), -1), self.hidden)
+        return self.head(x)
+
+
+
+
+
 class DuelingDQN(nn.Module):
     def __init__(self, in_channels=4, n_actions=14, **kwargs):
         """

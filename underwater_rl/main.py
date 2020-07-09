@@ -1,25 +1,23 @@
 #!/usr/bin/env python3
 import argparse
-from copy import deepcopy
 import logging
 import math
 import os
 import pickle
 import random
 import shutil
+import sys
 import time
 import warnings
 from collections import namedtuple
-from torch.distributions import Categorical
 from itertools import count
 
 import gym
 import numpy as np
-import sys
 import torch
-import torch.nn as nn
-import torch.optim as optim
 import torch.nn.functional as F
+import torch.optim as optim
+from torch.distributions import Categorical
 
 sys.path.append(os.path.dirname(__file__))
 
@@ -36,8 +34,7 @@ except ImportError:
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 warnings.filterwarnings("ignore", category=UserWarning)
-Transition = namedtuple('Transition',
-                        ('state', 'action', 'next_state', 'reward'))
+Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
 
 
 def select_action(state):
@@ -58,6 +55,7 @@ def select_action(state):
     else:
         # TODO: should this just go the the CPU?
         return torch.tensor([[random.randrange(env.action_space.n)]], device=device, dtype=torch.long)
+
 
 def select_softaction(state):
     # state = torch.FloatTensor(state).unsqueeze(0).to(device)
@@ -349,7 +347,7 @@ if __name__ == '__main__':
                          help='learning rate (default: 1e-4)')
     rl_args.add_argument('--network', default='dqn_pong_model',
                          choices=['dqn_pong_model', 'soft_dqn', 'dueling_dqn', 'resnet18', 'resnet10', 'resnet12',
-                                  'resnet14', 'lstm'],
+                                  'resnet14', 'recurrent'],
                          help='choose a network architecture (default: dqn_pong_model)')
     rl_args.add_argument('--double', default=False, action='store_true',
                          help='switch for double dqn (default: False)')
@@ -439,12 +437,13 @@ if __name__ == '__main__':
         ball_size=args.ball_size,
         state_type=args.state,
     )
-    # TODO: consider removing some of the wrappers - may improve performance
-    env = make_env(env, episodic_life=True, clip_rewards=True)
 
     # create networks
     architecture = args.network
     policy_net, target_net = create_networks(args.network, args.pretrain)
+
+    # TODO: consider removing some of the wrappers - may improve performance
+    env = make_env(env, episodic_life=True, clip_rewards=True)
 
     # setup optimizer
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)
