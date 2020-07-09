@@ -65,6 +65,7 @@ def select_softaction(state):
         #print(dist)
         c = Categorical(dist)
         a = c.sample()
+        #print(a)
     return torch.tensor([[a.item()]], device=device, dtype=torch.long)
 
 
@@ -134,8 +135,8 @@ def optimize_model():
 
     optimizer.zero_grad()
     loss.backward()
-    for param in policy_net.parameters():
-        param.grad.data.clamp_(-1, 1)
+    #for param in policy_net.parameters():
+        #param.grad.data.clamp_(-1, 1)
     optimizer.step()
 
 
