@@ -13,6 +13,7 @@ from torch.distributions import Categorical
 from itertools import count
 
 import gym
+from matplotlib import pyplot as plt
 import numpy as np
 import sys
 import torch
@@ -51,6 +52,7 @@ def select_action(state):
     else:
         # TODO: should this just go the the CPU?
         return torch.tensor([[random.randrange(env.action_space.n)]], device=device, dtype=torch.long)
+
 
 def select_softaction(state):
     # state = torch.FloatTensor(state).unsqueeze(0).to(device)
@@ -172,6 +174,9 @@ def train(env, n_episodes, history, render=False):
             else:
                 next_state = None
 
+            if args.debug:
+                display_state(next_state)
+
             reward = torch.tensor([reward], device=device)
 
             memory.store(state, action.to('cpu'), next_state, reward.to('cpu'))
@@ -202,6 +207,20 @@ def train(env, n_episodes, history, render=False):
         shutil.rmtree(save_dir)
 
     return history
+
+
+def display_state(state: torch.Tensor):
+    """
+    Displays the passed state using matplotlib
+
+    :param state: torch.Tensor
+    :return:
+    """
+    np_state = state.numpy().squeeze()
+    fig, axs = plt.subplots(1, len(np_state), figsize=(20, 5))
+    for img, ax in zip(np_state, axs):
+        ax.imshow(img, cmap='gray')
+    fig.show()
 
 
 def test(env, n_episodes, policy, render=True):
@@ -358,6 +377,10 @@ if __name__ == '__main__':
     resume_args.add_argument('--store-dir', dest='store_dir',
                              default=os.path.join('..', 'experiments', time.strftime("%Y-%m-%d %H.%M.%S")),
                              help='Path to directory to store experiment results (default: ./experiments/<timestamp>/')
+
+    '''debug args'''
+    debug_args = parser.add_argument_group("Debug")
+    debug_args.add_argument('--debug', action='store_true', help='Debug mode')
 
     args = parser.parse_args()
 
