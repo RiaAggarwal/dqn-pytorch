@@ -14,21 +14,18 @@ __all__ = ['make_env', 'RewardScaler', 'ClipRewardEnv', 'LazyFrames', 'FrameStac
 cv2.ocl.setUseOpenCL(False)
 
 
-def make_env(env, stack_frames=True, episodic_life=True, clip_rewards=False, max_and_skip=True, scale=False):
+def make_env(env, stack_frames=True, episodic_life=True, clip_rewards=False, scale=False):
     if episodic_life:
         env = EpisodicLifeEnv(env)
 
     env = NoopResetEnv(env, noop_max=30)
-    if max_and_skip:
-        env = MaxAndSkipEnv(env, skip=4)
-        if stack_frames:
-            env = FrameStack(env, 4)
+    env = MaxAndSkipEnv(env, skip=4)
     if 'FIRE' in env.unwrapped.get_action_meanings():
         env = FireResetEnv(env)
 
     env = WarpFrame(env)
-    if (not max_and_skip) and stack_frames:
-        env = FrameStackAndSkip(env, 4)
+    if stack_frames:
+        env = FrameStack(env, 4)
     if clip_rewards:
         env = ClipRewardEnv(env)
     return env
@@ -79,7 +76,7 @@ class LazyFrames(object):
 
 
 class FrameStack(gym.Wrapper):
-    def __init__(self, env, stack_size):
+    def __init__(self, env, k):
         """Stack k last frames.
         Returns lazy array, which is much more memory efficient.
         See Also
@@ -87,15 +84,15 @@ class FrameStack(gym.Wrapper):
         baselines.common.atari_wrappers.LazyFrames
         """
         gym.Wrapper.__init__(self, env)
-        self.stack_size = stack_size
-        self.frames = deque([], maxlen=stack_size)
+        self.k = k
+        self.frames = deque([], maxlen=k)
         shp = env.observation_space.shape
-        self.observation_space = gym.spaces.Box(low=0, high=255, shape=(shp[0], shp[1], shp[2] * stack_size),
+        self.observation_space = gym.spaces.Box(low=0, high=255, shape=(shp[0], shp[1], shp[2] * k),
                                                 dtype=env.observation_space.dtype)
 
     def reset(self):
         ob = self.env.reset()
-        for _ in range(self.stack_size):
+        for _ in range(self.k):
             self.frames.append(ob)
         return self._get_ob()
 
@@ -105,7 +102,7 @@ class FrameStack(gym.Wrapper):
         return self._get_ob(), reward, done, info
 
     def _get_ob(self):
-        assert len(self.frames) == self.stack_size
+        assert len(self.frames) == self.k
         return LazyFrames(list(self.frames))
 
 
@@ -207,13 +204,12 @@ class MaxAndSkipEnv(gym.Wrapper):
 
         return max_frame, total_reward, done, info
 
-
-class FrameStackAndSkip(FrameStack):
-    def step(self, action):
-        for _ in range(self.stack_size):
-            ob, reward, done, info = self.env.step(action)
-            self.frames.append(ob)
-            return self._get_ob(), reward, done, info
+    def reset(self):
+        """Clear past frame buffer and init. to first obs. from inner env."""
+        self._obs_buffer.clear()
+        obs = self.env.reset()
+        self._obs_buffer.append(obs)
+        return obs
 
 
 class NoopResetEnv(gym.Wrapper):
