@@ -22,12 +22,12 @@ from torch.distributions import Categorical
 sys.path.append(os.path.dirname(__file__))
 
 try:
-    from .memory import ReplayMemory, PrioritizedReplay
+    from .memory import *
     from .models import *
     from .wrappers import *
     from utils import convert_images_to_video
 except ImportError:
-    from memory import ReplayMemory, PrioritizedReplay
+    from memory import *
     from models import *
     from wrappers import *
     from utils import convert_images_to_video
@@ -40,6 +40,15 @@ Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'
 def select_action(state):
     global steps_done
     global epoch
+    if architecture == 'soft_dqn':
+        return select_soft_action(state)
+    else:
+        return select_e_greedy_action(state)
+
+
+def select_e_greedy_action(state):
+    global epoch
+    global steps_done
     sample = random.random()
     if STEPSDECAY:
         eps_threshold = EPS_END + (EPS_START - EPS_END) * \
@@ -47,27 +56,25 @@ def select_action(state):
     else:
         eps_threshold = EPS_END + (EPS_START - EPS_END) * \
                         math.exp(-1. * epoch / EPS_DECAY)
-
     steps_done += 1
     if sample > eps_threshold:
         with torch.no_grad():
             return policy_net(state.to(device)).max(1)[1]
     else:
-        # TODO: should this just go the the CPU?
         return torch.tensor([[random.randrange(env.action_space.n)]], device=device, dtype=torch.long)
 
 
-def select_softaction(state):
+def select_soft_action(state):
     # state = torch.FloatTensor(state).unsqueeze(0).to(device)
     # print('state : ', state)
     with torch.no_grad():
         q = policy_net.forward(state.to(device))
         v = policy_net.getV(q).squeeze()
         # print('q & v', q, v)
-        dist = torch.exp((q-v)/policy_net.alpha)
+        dist = torch.exp((q - v) / policy_net.alpha)
         # print(dist)
         dist = dist / torch.sum(dist)
-        #print(dist)
+        # print(dist)
         c = Categorical(dist)
         a = c.sample()
     return torch.tensor([[a.item()]], device=device, dtype=torch.long)
@@ -99,21 +106,19 @@ def optimize_model():
     """
     batch = Transition(*zip(*transitions))
 
-    actions = tuple((map(lambda a: torch.tensor([[a]], device=device), batch.action)))
-    rewards = tuple((map(lambda r: torch.tensor([r], device=device), batch.reward)))
+    actions = tuple((map(lambda a: torch.tensor([[a]], dtype=torch.int64, device=device), batch.action)))
+    rewards = tuple((map(lambda r: torch.tensor([r], dtype=torch.int64, device=device), batch.reward)))
 
-    non_final_mask = torch.tensor(
-        tuple(map(lambda s: s is not None, batch.next_state)),
-        device=device, dtype=torch.uint8
-    )
-
-    non_final_next_states = torch.cat([s for s in batch.next_state
-                                       if s is not None]).to(device)
+    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)),
+                                  device=device, dtype=torch.uint8)
+    non_final_next_states = torch.cat([s for s in batch.next_state if s is not None]).to(device)
 
     state_batch = torch.cat(batch.state).to(device)
     action_batch = torch.cat(actions)
     reward_batch = torch.cat(rewards)
 
+    if architecture == 'lstm':
+        policy_net.zero_hidden()
     state_action_values = policy_net(state_batch).gather(1, action_batch)
 
     next_state_values = torch.zeros(BATCH_SIZE, device=device)
@@ -139,8 +144,9 @@ def optimize_model():
 
     optimizer.zero_grad()
     loss.backward()
-    for param in policy_net.parameters():
-        param.grad.data.clamp_(-1, 1)
+    for name, param in policy_net.named_parameters():
+        if param.grad is not None:
+            param.grad.data.clamp_(-1, 1)
     optimizer.step()
 
 
@@ -151,24 +157,18 @@ def get_state(obs):
     return state.unsqueeze(0)
 
 
-def train(env, n_episodes, history, render=False):
+def train(env, n_episodes, history, render_mode=False):
     global epoch
+    save_dir = os.path.join(args.store_dir, 'video')
+
     for episode in range(1, n_episodes + 1):
         obs = env.reset()
         state = get_state(obs)  # torch.Size([1, 4, 84, 84])
         total_reward = 0.0
         for t in count():
-            if architecture == 'soft_dqn':
-                action = select_softaction(state)
-            else:
-                action = select_action(state)
-
-            if render:
-                save_dir = os.path.join(args.store_dir, 'video')
-                env.render(mode=render, save_dir=save_dir)
-
+            action = select_action(state)
+            render_state(env, render_mode, save_dir)
             obs, reward, done, info = env.step(action)
-
             total_reward += reward
 
             if not done:
@@ -177,14 +177,15 @@ def train(env, n_episodes, history, render=False):
                 next_state = None
 
             reward = torch.tensor([reward], device=device)
-
-            memory.store(state, action.to('cpu'), next_state, reward.to('cpu'))
+            if architecture == 'lstm':
+                memory.store(episode, state, action.to('cpu'), next_state, reward.to('cpu'))
+            else:
+                memory.store(state, action.to('cpu'), next_state, reward.to('cpu'))
             state = next_state
 
             if steps_done > INITIAL_MEMORY:
                 optimize_model()
-                if steps_done % TARGET_UPDATE == 0:
-                    target_net.load_state_dict(policy_net.state_dict())
+                update_target_net()
 
             if done:
                 break
@@ -192,39 +193,43 @@ def train(env, n_episodes, history, render=False):
         epoch += 1
         history.append((total_reward, t))
         if episode % LOG_INTERVAL == 0:
-            avg_reward = sum([h[0] for h in history[-LOG_INTERVAL:]]) / LOG_INTERVAL
-            avg_steps = int(sum([h[1] for h in history[-LOG_INTERVAL:]]) / LOG_INTERVAL)
-            logger.info(f'Total steps: {steps_done}\tEpisode: {epoch}/{t}\tAvg reward: {avg_reward:.2f}\t'
-                        f'Avg steps: {avg_steps}')
+            log_checkpoint(epoch, history, t)
         if episode % CHECKPOINT_INTERVAL == 0:
             save_checkpoint(args.store_dir)
 
     env.close()
 
-    if render == 'png':
+    if render_mode == 'png':
         convert_images_to_video(image_dir=save_dir, save_dir=os.path.dirname(save_dir))
         shutil.rmtree(save_dir)
 
     return history
 
 
-def test(env, n_episodes, policy, render=True):
+def update_target_net():
+    if steps_done % TARGET_UPDATE == 0:
+        target_net.load_state_dict(policy_net.state_dict())
+
+
+def log_checkpoint(epoch, history, steps):
+    avg_reward = sum([h[0] for h in history[-LOG_INTERVAL:]]) / LOG_INTERVAL
+    avg_steps = int(sum([h[1] for h in history[-LOG_INTERVAL:]]) / LOG_INTERVAL)
+    logger.info(f'Total steps: {steps_done}\tEpisode: {epoch}/{steps}\tAvg reward: {avg_reward:.2f}\t'
+                f'Avg steps: {avg_steps}')
+
+
+def test(env, n_episodes, policy, render_mode=True):
     # todo: look into using the Monitor wrapper
     save_dir = os.path.join(args.store_dir, 'video')
+
     for episode in range(n_episodes):
         obs = env.reset()
         state = get_state(obs)
         total_reward = 0.0
         for t in count():
-
             action = policy(state.to(device)).max(1)[1].view(1, 1)
-
-            if render:
-                env.render(mode=render, save_dir=save_dir)
-                time.sleep(0.02)
-
+            render_state(env, render_mode, save_dir)
             obs, reward, done, info = env.step(action)
-
             total_reward += reward
 
             if not done:
@@ -237,11 +242,16 @@ def test(env, n_episodes, policy, render=True):
             if done:
                 logger.info("Finished Episode {} with reward {}".format(episode, total_reward))
                 break
-
     env.close()
-    if render == 'png':
+    if render_mode == 'png':
         convert_images_to_video(image_dir=save_dir, save_dir=os.path.dirname(save_dir))
         shutil.rmtree(save_dir)
+
+
+def render_state(env, mode, save_dir):
+    if mode:
+        env.render(mode=mode, save_dir=save_dir)
+        time.sleep(0.02)
 
 
 def get_logger(store_dir):
@@ -290,6 +300,7 @@ def create_networks(architecture, pretrain):
         'dqn_pong_model': DQN,
         'soft_dqn': softDQN,
         'dueling_dqn': DuelingDQN,
+        'lstm': DRQN,
         'resnet18': resnet18,
         'resnet10': resnet10,
         'resnet12': resnet12,
@@ -300,6 +311,19 @@ def create_networks(architecture, pretrain):
     target_net.load_state_dict(policy_net.state_dict())
 
     return policy_net, target_net
+
+
+def initialize_replay_memory():
+    if PRIORITY:
+        if args.rankbased:
+            return PrioritizedReplay(MEMORY_SIZE, rank_based=True)
+        else:
+            return PrioritizedReplay(MEMORY_SIZE)
+    else:
+        if architecture == 'lstm':
+            return EpisodicMemory(MEMORY_SIZE)
+        else:
+            return ReplayMemory(MEMORY_SIZE)
 
 
 if __name__ == '__main__':
@@ -347,7 +371,7 @@ if __name__ == '__main__':
                          help='learning rate (default: 1e-4)')
     rl_args.add_argument('--network', default='dqn_pong_model',
                          choices=['dqn_pong_model', 'soft_dqn', 'dueling_dqn', 'resnet18', 'resnet10', 'resnet12',
-                                  'resnet14', 'recurrent'],
+                                  'resnet14', 'lstm'],
                          help='choose a network architecture (default: dqn_pong_model)')
     rl_args.add_argument('--double', default=False, action='store_true',
                          help='switch for double dqn (default: False)')
@@ -363,12 +387,14 @@ if __name__ == '__main__':
                          help="switch to use default step decay")
     rl_args.add_argument('--episodes', dest='episodes', default=4000, type=int,
                          help='Number of episodes to train for (default: 4000)')
-    rl_args.add_argument('--replay', default=10000, type=int,
-                         help="change the replay mem size (default: 10000)")
+    rl_args.add_argument('--replay', default=100_000, type=int,
+                         help="change the replay mem size (default: 100,000)")
     rl_args.add_argument('--priority', default=False, action='store_true',
                          help='switch for prioritized replay (default: False)')
     rl_args.add_argument('--rankbased', default=False, action='store_true',
                          help='switch for rank-based prioritized replay (omit if proportional)')
+    rl_args.add_argument('--batch-size', dest='batch_size', default=32, type=int,
+                         help="network training batch size or sequence length for recurrent networks")
 
     '''resume args'''
     resume_args = parser.add_argument_group("Resume", "Store experiments / Resume training")
@@ -389,7 +415,7 @@ if __name__ == '__main__':
         os.makedirs(args.store_dir)
 
     # hyperparameters
-    BATCH_SIZE = 32
+    BATCH_SIZE = args.batch_size
     GAMMA = 0.99
     EPS_START = 1
     EPS_END = 0.02
@@ -397,8 +423,8 @@ if __name__ == '__main__':
     TARGET_UPDATE = 1000
     RENDER = args.render
     lr = args.learning_rate
-    INITIAL_MEMORY = args.replay
-    MEMORY_SIZE = 10 * INITIAL_MEMORY
+    INITIAL_MEMORY = args.replay // 10
+    MEMORY_SIZE = args.replay
     DOUBLE = args.double
     STEPSDECAY = args.stepsdecay
     PRIORITY = args.priority
@@ -443,7 +469,10 @@ if __name__ == '__main__':
     policy_net, target_net = create_networks(args.network, args.pretrain)
 
     # TODO: consider removing some of the wrappers - may improve performance
-    env = make_env(env, episodic_life=True, clip_rewards=True)
+    if architecture == 'lstm':
+        env = make_env(env, stack_frames=False, episodic_life=True, clip_rewards=True, max_and_skip=False)
+    else:
+        env = make_env(env, stack_frames=True, episodic_life=True, clip_rewards=True, max_and_skip=True)
 
     # setup optimizer
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)
@@ -463,16 +492,10 @@ if __name__ == '__main__':
         history = []
 
     # initialize replay memory
-    if PRIORITY:
-        if args.rankbased:
-            memory = PrioritizedReplay(MEMORY_SIZE, rank_based=True)
-        else:
-            memory = PrioritizedReplay(MEMORY_SIZE)
-    else:
-        memory = ReplayMemory(MEMORY_SIZE)
+    memory = initialize_replay_memory()
 
     if args.test:  # test
-        test(env, 1, policy_net, render=RENDER)
+        test(env, 1, policy_net, render_mode=RENDER)
     else:  # train
-        history = train(env, args.episodes, history, render=RENDER)
+        history = train(env, args.episodes, history, render_mode=RENDER)
         save_checkpoint(args.store_dir)
