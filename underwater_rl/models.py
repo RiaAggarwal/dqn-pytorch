@@ -7,7 +7,7 @@ try:
 except ImportError:
     from torch.utils.model_zoo import load_url as load_state_dict_from_url
 
-__all__ = ['DQNbn', 'DQN', 'DuelingDQN', 'softDQN', 'ResNet', 'resnet18', 'resnet10', 'resnet12', 'resnet14']
+__all__ = ['DQNbn', 'DQN', 'DuelingDQN', 'softDQN', 'ResNet', 'resnet18', 'resnet10', 'resnet12', 'resnet14', 'DRQN']
 
 
 class DQNbn(nn.Module):
@@ -72,25 +72,25 @@ class DRQN(DQN):
 
     Replaces the FC layer with a LSTM layer
     """
+
     def __init__(self, in_channels=1, n_actions=14, **kwargs):
         super(DRQN, self).__init__(in_channels=in_channels, n_actions=n_actions, **kwargs)
+        del self.fc4
+
         self.hidden_dim = 512
         self.lstm = nn.LSTM(7 * 7 * 64, self.hidden_dim)
         self.zero_hidden()
 
-    def zero_hidden(self):
-        self.hidden = (torch.randn(1, 1, self.hidden_dim), torch.randn(1, 1, self.hidden_dim))
+    def zero_hidden(self, batch_size=1):
+        self.hidden = (torch.randn(1, batch_size, self.hidden_dim), torch.randn(1, batch_size, self.hidden_dim))
 
     def forward(self, x):
         x = x.float() / 255
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
-        x, self.hidden = self.lstm(x.reshape(x.size(0), -1), self.hidden)
-        return self.head(x)
-
-
-
+        x, self.hidden = self.lstm(x.reshape(x.size(0), 1, -1), self.hidden)
+        return self.head(x.reshape(-1, self.hidden_dim))
 
 
 class DuelingDQN(nn.Module):
@@ -158,7 +158,7 @@ class softDQN(nn.Module):
         return self.head(x)
 
     def getV(self, q_value):
-        v = self.alpha * torch.log(torch.sum(torch.exp(q_value/self.alpha), dim=1, keepdim=True))
+        v = self.alpha * torch.log(torch.sum(torch.exp(q_value / self.alpha), dim=1, keepdim=True))
         return v
 
 

@@ -19,16 +19,13 @@ def make_env(env, stack_frames=True, episodic_life=True, clip_rewards=False, max
         env = EpisodicLifeEnv(env)
 
     env = NoopResetEnv(env, noop_max=30)
-    if max_and_skip:
-        env = MaxAndSkipEnv(env, skip=4)
-        if stack_frames:
-            env = FrameStack(env, 4)
+    env = MaxAndSkipEnv(env, skip=4)
     if 'FIRE' in env.unwrapped.get_action_meanings():
         env = FireResetEnv(env)
 
     env = WarpFrame(env)
-    if (not max_and_skip) and stack_frames:
-        env = FrameStackAndSkip(env, 4)
+    if stack_frames:
+        env = FrameStack(env, 4)
     if clip_rewards:
         env = ClipRewardEnv(env)
     return env
