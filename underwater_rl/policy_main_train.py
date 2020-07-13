@@ -85,7 +85,8 @@ def optimize_model(act_p, act, reward):
     optimizer.zero_grad()
     loss.backward()
     for param in policy_net.parameters():
-        param.grad.data.clamp_(-1, 1)
+        #param.grad.data.clamp_(-1, 1)
+        print(param.grad)
     optimizer.step()
 
 
@@ -100,8 +101,9 @@ def train(env, n_episodes, history, render=False):
         reward_pool = []
         for t in count():
             action_prob = policy_net.forward(state.to(device))
-            print(action_prob)
+            #print(action_prob)
             action  = select_action(action_prob)
+            #print(action)
 
             if render:
                 save_dir = os.path.join(args.store_dir, 'video')
@@ -155,11 +157,12 @@ def train(env, n_episodes, history, render=False):
         loss_fn = nn.CrossEntropyLoss(reduction="none")
         loss_value = loss_fn(act_p, label)
         loss = torch.dot(loss_value, reward_pool)
-        loss = Variable(loss, requires_grad = True)
+        #loss = Variable(loss, requires_grad = True)
         optimizer.zero_grad()
         loss.backward()
-        for param in policy_net.parameters():
-            param.grad.data.clamp_(-1, 1)
+        #for param in policy_net.parameters():
+            #param.grad.data.clamp_(-1, 1)
+            #print(param.grad)
         optimizer.step()
 
         #optimize_model(action_prob_pool, action_pool, reward_pool)
