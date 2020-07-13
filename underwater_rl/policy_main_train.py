@@ -12,7 +12,7 @@ from collections import namedtuple
 from torch.distributions import Categorical
 from torch.nn import Softmax
 from itertools import count
-
+from torch.autograd import Variable
 import gym
 from matplotlib import pyplot as plt
 import numpy as np
@@ -43,14 +43,16 @@ def get_state(obs):
 def select_action(state):
     # state = torch.FloatTensor(state).unsqueeze(0).to(device)
     # print('state : ', state)
-    with torch.no_grad():
-        p = policy_net.forward(state.to(device))
-        m = Softmax(dim=0)
-        action_prob = m(p)
-        c = Categorical(action_prob)
-        a = c.sample()
-        #print(a)
-    return torch.tensor([[a.item()]], device=device, dtype=torch.long), p
+    #with torch.no_grad():
+    p = policy_net.forward(state.to(device))
+    #print(p)
+    m = Softmax(dim=1)
+    action_prob = m(p)
+    #print(action_prob)
+    c = Categorical(action_prob)
+    a = c.sample()
+    #print(a)
+    return a.item(), p
 
 def discount_reward(r_dic, gamma):
     """
@@ -71,11 +73,17 @@ def discount_reward(r_dic, gamma):
 def optimize_model(act_p, act, reward):
 
     label = act
+    act_p = act_p.squeeze()
+    #print(act_p)
+    #print(reward)
+    #print(act)
     label = label.long()
     loss_fn = nn.CrossEntropyLoss(reduction="none") # for mulitple output
     loss_value = loss_fn(act_p, label)
+    #print(loss_value.size())
     loss = torch.dot(loss_value, reward)
-
+    loss = Variable(loss, requires_grad = True)
+    #print(loss)
     optimizer.zero_grad()
     loss.backward()
     for param in policy_net.parameters():
@@ -133,10 +141,10 @@ def train(env, n_episodes, history, render=False):
         action_prob_pool = torch.stack(action_prob_pool)
 
         action_pool = np.array(action_pool)
-        action_pool = torch.from_numpy(action_pool).float().to(self.device)
+        action_pool = torch.from_numpy(action_pool).float().to(device)
 
         reward_pool = np.array(reward_pool)
-        reward_pool = torch.from_numpy(reward_pool).float().to(self.device)
+        reward_pool = torch.from_numpy(reward_pool).float().to(device)
 
         reward_pool = discount_reward(reward_pool, GAMMA)
         optimize_model(action_prob_pool, action_pool, reward_pool)
