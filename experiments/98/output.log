@@ -1,0 +1,2 @@
+2020-07-07 21:54:46,260	INFO	--width 160 --height 160 --ball 3.0 --ball-size 2.0 --snell 3.0 --snell-width 40.0 --snell-change 0.0 --snell-visible none --paddle-speed 3.0 --paddle-angle 45.0 --paddle-length 45.0 --update-prob 0.2 --state binary --learning-rate 0.0001 --network dqn_pong_model --render False --epsdecay 1000 --episodes 4000 --replay 10000 --checkpoint ../experiments/59/dqn_pong_model --history ../experiments/59/history.p --store-dir ../experiments/98 
+2020-07-07 21:54:46,260	INFO	Device: cuda
