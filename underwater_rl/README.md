@@ -27,3 +27,9 @@ python main.py
 - set the state representation
     - 'binary' - binary image (as before)
     - 'color' - color image. If this is not set, and the snell layer is set to 'machine', the agent will not be able to see the ball in the snell layer.
+    
+`--network`
+- Choose the type of neural network
+    - 'dqn_pong_model' - the default. A four-layer fully-connected network.
+    - 'lstm' - lstm replaces the first fully-connected layer.
+        - memory is now episodic so `--replay` sets the number of episodes in the replay memory, not the number of steps.

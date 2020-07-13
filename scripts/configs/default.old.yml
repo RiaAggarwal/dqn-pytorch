@@ -1,19 +1,19 @@
 # Environment options
 width: 160
 height: 160
-ball: 1.0
+ball: 3.0
 ball_size: 2.0
-snell: 1.0
-snell_width: 80.0
+snell: 3.0
+snell_width: 40.0
 snell_change: 0
 snell_visible: "none"
 #no_refraction:  # comment out to turn off
 #uniform_speed:  # comment out to turn off
-paddle_speed: 1.0
-paddle_length: 20
-paddle_angle: 70
+paddle_speed: 3.0
+paddle_length: 45
+paddle_angle: 45
 state: "binary"
-update_prob: 0.4
+update_prob: 0.2
 
 # Model and training options
 episodes: 4000
