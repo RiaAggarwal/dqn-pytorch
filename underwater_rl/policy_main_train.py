@@ -395,5 +395,6 @@ if __name__ == '__main__':
     if args.test:  # test
         test(env, 1, policy_net, render=RENDER)
     else:  # train
+	logger.info("Training the Policy gradient model")
         history = train(env, args.episodes, history, render=RENDER)
         save_checkpoint(args.store_dir)
