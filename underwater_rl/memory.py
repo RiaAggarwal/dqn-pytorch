@@ -30,8 +30,8 @@ class PrioritizedReplay(object):
     def __init__(self, 
                  capacity, 
                  rank_based=False,
-                 alpha=0.7, 
-                 beta0=0.1, 
+                 alpha=0.6, 
+                 beta=0.1, 
                  beta_rate=1.000001):
         self.capacity = capacity
         self.memory = np.empty(shape=(self.capacity, 2), dtype=np.ndarray)
@@ -41,7 +41,7 @@ class PrioritizedReplay(object):
         self.sample_index = 1 # col 1 of memory
         self.rank_based = rank_based # if not rank_based, then proportional
         self.alpha = alpha # how much prioritization to use: 0 is uniform (no priority), 1 is full priority
-        self.beta = beta0 # bias correction 0 is no correction 1 is full correction
+        self.beta = beta # bias correction 0 is no correction 1 is full correction
         self.beta_rate = beta_rate
 
     def update(self, idxs, td_errors):

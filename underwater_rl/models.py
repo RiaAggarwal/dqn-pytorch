@@ -7,7 +7,7 @@ try:
 except ImportError:
     from torch.utils.model_zoo import load_url as load_state_dict_from_url
 
-__all__ = ['DQNbn', 'DQN', 'DuelingDQN', 'softDQN', 'ResNet', 'resnet18', 'resnet10', 'resnet12', 'resnet14']
+__all__ = ['DQNbn', 'DQN', 'DuelingDQN', 'softDQN', 'distributionDQN', 'ResNet', 'resnet18', 'resnet10', 'resnet12', 'resnet14']
 
 
 class DQNbn(nn.Module):
@@ -134,7 +134,37 @@ class softDQN(nn.Module):
         v = self.alpha * torch.log(torch.sum(torch.exp(q_value/self.alpha), dim=1, keepdim=True))
         return v
 
+class distributionDQN(nn.Module):
+    def __init__(self, in_channels=4, n_actions=14):
+        """
+        Deep Q Network with KL Priority 
 
+        Args:
+            in_channels (int): number of input channels
+            n_actions (int): number of outputs
+        """
+        super(distributionDQN, self).__init__()
+        self.n_actions = n_actions
+        self.atoms = 51
+        self.conv1 = nn.Conv2d(in_channels, 32, kernel_size=8, stride=4)
+        # self.bn1 = nn.BatchNorm2d(32)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
+        # self.bn2 = nn.BatchNorm2d(64)
+        self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
+        # self.bn3 = nn.BatchNorm2d(64)
+        self.fc4 = nn.Linear(7 * 7 * 64, 512)
+        self.head = nn.Linear(512, self.n_actions * self.atoms)
+
+    def forward(self, x):
+        x = x.float() / 255
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x = F.relu(self.fc4(x.reshape(x.size(0), -1)))
+        x = self.head(x)
+        x = F.log_softmax(x.view(-1, self.n_actions, self.atoms), dim = 2)
+        return x
+    
 # ResNet Below
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
     """3x3 convolution with padding"""
