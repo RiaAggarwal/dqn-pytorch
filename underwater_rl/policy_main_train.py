@@ -40,17 +40,17 @@ def get_state(obs):
     state = torch.from_numpy(state)
     return state.unsqueeze(0)
 
-def select_action(state):
+def select_action(p):
     # state = torch.FloatTensor(state).unsqueeze(0).to(device)
     # print('state : ', state)
     #with torch.no_grad():
-    p = policy_net.forward(state.to(device))
+    #p = policy_net.forward(state.to(device))
     m = Softmax(dim=1)
-    action_prob = m(p)
-    c = Categorical(action_prob)
+    probs = m(p)
+    c = Categorical(probs)
     a = c.sample()
     #print(a)
-    return a.item(), p
+    return a.item()
 
 def discount_reward(r_dic, gamma):
     """
@@ -99,7 +99,9 @@ def train(env, n_episodes, history, render=False):
         action_pool = []
         reward_pool = []
         for t in count():
-            action, action_prob  = select_action(state)
+            action_prob = policy_net.forward(state.to(device))
+            print(action_prob)
+            action  = select_action(action_prob)
 
             if render:
                 save_dir = os.path.join(args.store_dir, 'video')
