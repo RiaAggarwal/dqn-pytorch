@@ -13,11 +13,11 @@ paddle_speed: 3.0
 paddle_length: 45
 paddle_angle: 45
 state: "binary"
+update_prob: 0.2
 
 # Model and training options
 episodes: 4000
 learning_rate: 1e-4
-update_prob: 0.2
 network: dqn_pong_model
 replay: 10000
 #rankbased: # comment out to turn off
