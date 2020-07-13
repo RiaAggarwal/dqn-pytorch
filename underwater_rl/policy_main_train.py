@@ -45,10 +45,8 @@ def select_action(state):
     # print('state : ', state)
     #with torch.no_grad():
     p = policy_net.forward(state.to(device))
-    #print(p)
     m = Softmax(dim=1)
     action_prob = m(p)
-    #print(action_prob)
     c = Categorical(action_prob)
     a = c.sample()
     #print(a)
@@ -147,7 +145,22 @@ def train(env, n_episodes, history, render=False):
         reward_pool = torch.from_numpy(reward_pool).float().to(device)
 
         reward_pool = discount_reward(reward_pool, GAMMA)
-        optimize_model(action_prob_pool, action_pool, reward_pool)
+
+        label = action_pool
+        act_p = action_prob_pool.squeeze()
+        label = label.long()
+
+        loss_fn = nn.CrossEntropyLoss(reduction="none")
+        loss_value = loss_fn(act_p, label)
+        loss = torch.dot(loss_value, reward_pool)
+        loss = Variable(loss, requires_grad = True)
+        optimizer.zero_grad()
+        loss.backward()
+        for param in policy_net.parameters():
+            param.grad.data.clamp_(-1, 1)
+        optimizer.step()
+
+        #optimize_model(action_prob_pool, action_pool, reward_pool)
 
         if episode % LOG_INTERVAL == 0:
             avg_reward = sum([h[0] for h in history[-LOG_INTERVAL:]]) / LOG_INTERVAL
