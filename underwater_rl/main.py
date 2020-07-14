@@ -351,32 +351,32 @@ if __name__ == '__main__':
                           help='canvas width (default: 160)')
     env_args.add_argument('--height', default=160, type=int,
                           help='canvas height (default: 160)')
-    env_args.add_argument('--ball', default=3.0, type=float,
-                          help='ball speed (default: 3.0)')
+    env_args.add_argument('--ball', default=1.0, type=float,
+                          help='ball speed (default: 1.0)')
     env_args.add_argument('--ball-size', dest='ball_size', default=2.0, type=float,
                           help='ball size (default: 2.0)')
-    env_args.add_argument('--snell', default=3.0, type=float,
-                          help='snell speed (default: 3.0)')
+    env_args.add_argument('--snell', default=1.0, type=float,
+                          help='snell speed (default: 1.0)')
     env_args.add_argument('--no-refraction', dest='no_refraction', default=False, action='store_true',
                           help='set to disable refraction')
     env_args.add_argument('--uniform-speed', dest='uniform_speed', default=False, action='store_true',
                           help='set to disable a different ball speed in the Snell layer')
-    env_args.add_argument('--snell-width', dest='snell_width', default=40.0, type=float,
-                          help='snell speed (default: 40.0)')
+    env_args.add_argument('--snell-width', dest='snell_width', default=80.0, type=float,
+                          help='snell speed (default: 80.0)')
     env_args.add_argument('--snell-change', dest='snell_change', default=0, type=float,
                           help='Standard deviation of the speed change per step (default: 0)')
     env_args.add_argument('--snell-visible', dest='snell_visible', default='none', type=str,
                           choices=['human', 'machine', 'none'],
                           help="Determine whether snell is visible to when rendering ('render') or to the agent and "
                                "when rendering ('machine')")
-    env_args.add_argument('--paddle-speed', default=3.0, type=float,
-                          help='paddle speed (default: 3.0)')
-    env_args.add_argument('--paddle-angle', default=45, type=float,
-                          help='Maximum angle the ball can leave the paddle (default: 45deg)')
-    env_args.add_argument('--paddle-length', default=45, type=float,
-                          help='paddle length (default: 45)')
-    env_args.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
-                          help='Probability that the opponent moves in the direction of the ball (default: 0.2)')
+    env_args.add_argument('--paddle-speed', default=1.0, type=float,
+                          help='paddle speed (default: 1.0)')
+    env_args.add_argument('--paddle-angle', default=70, type=float,
+                          help='Maximum angle the ball can leave the paddle (default: 70deg)')
+    env_args.add_argument('--paddle-length', default=20, type=float,
+                          help='paddle length (default: 20)')
+    env_args.add_argument('--update-prob', dest='update_prob', default=0.4, type=float,
+                          help='Probability that the opponent moves in the direction of the ball (default: 0.4)')
     env_args.add_argument('--state', default='binary', type=str, choices=['binary', 'color'],
                           help='state representation (default: binary)')
 
