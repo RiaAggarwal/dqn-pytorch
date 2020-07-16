@@ -175,6 +175,9 @@ class distributionDQN(nn.Module):
         super(distributionDQN, self).__init__()
         self.n_actions = n_actions
         self.atoms = 51
+        self.Vmin = -10
+        self.Vmax = 10
+        self.DELTA_Z = (self.Vmax - self.Vmin) / (self.atoms - 1)
         self.conv1 = nn.Conv2d(in_channels, 32, kernel_size=8, stride=4)
         # self.bn1 = nn.BatchNorm2d(32)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
@@ -183,6 +186,8 @@ class distributionDQN(nn.Module):
         # self.bn3 = nn.BatchNorm2d(64)
         self.fc4 = nn.Linear(7 * 7 * 64, 512)
         self.head = nn.Linear(512, self.n_actions * self.atoms)
+        self.register_buffer("supports", torch.arange(self.Vmin, self.Vmax+self.DELTA_Z, self.DELTA_Z))
+        self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
         x = x.float() / 255
@@ -190,9 +195,21 @@ class distributionDQN(nn.Module):
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
         x = F.relu(self.fc4(x.reshape(x.size(0), -1)))
-        x = self.head(x)
-        x = F.log_softmax(x.view(-1, self.n_actions, self.atoms), dim = 2)
+        x = self.head(x).view(-1, self.n_actions, self.atoms)
         return x
+
+    def both(self, x):
+        cat_out = self(x)
+        probs = self.apply_softmax(cat_out)
+        weights = probs * self.supports
+        res = weights.sum(dim=2)
+        return cat_out, res
+
+    def qvals(self, x):
+        return self.both(x)[1]
+
+    def apply_softmax(self, t):
+        return self.softmax(t.view(-1, self.atoms)).view(t.size())
     
 # ResNet Below
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):

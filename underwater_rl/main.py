@@ -26,7 +26,7 @@ sys.path.append(os.path.dirname(__file__))
 from memory import ReplayMemory, PrioritizedReplay
 from models import *
 from wrappers import *
-from utils import convert_images_to_video
+from utils import convert_images_to_video, distr_projection
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -49,7 +49,7 @@ def select_action(state):
     if sample > eps_threshold:
         with torch.no_grad():
             if architecture == 'distribution_dqn':
-                return (policy_net(state.to(device)) * support).sum(2).argmax(1)
+                return (policy_net.qvals(state.to(device))).argmax()
             else:
                 return policy_net(state.to(device)).max(1)[1]
     else:
@@ -114,55 +114,29 @@ def optimize_model():
     reward_batch = torch.cat(rewards)
     
     if architecture == 'distribution_dqn':
-        '''     # TD error based priority has bad performance
-        td_errors = state_action_values - expected_state_action_values.unsqueeze(1)
-        td_errors = td_errors.detach().cpu().numpy()
-        memory.update(idxs, td_errors)
-        loss = F.smooth_l1_loss(weights * state_action_values, weights * expected_state_action_values.unsqueeze(1))
-        '''
-        # KL divergence based priority   
-        # num_nonfinal = torch.sum(non_final_mask)
-        next_states = torch.cat([s if s is not None else batch.state[i] for i,s in enumerate(batch.next_state)]).to(device)
-        nonterminals = torch.stack(tuple(map(lambda s: torch.tensor(s is not None, dtype=torch.float32, device=device) , batch.next_state)))
-        with torch.no_grad():
-            # Calculate nth next state probabilities
-            pns = policy_net(next_states)                 # Probabilities p(s_t+n, ·; θonline)
-            dns = support.expand_as(pns) * pns                      # Distribution d_t+n = (z, p(s_t+n, ·; θonline))
-            argmax_indices_ns = dns.sum(2).argmax(1)                # Perform argmax action selection using online network: argmax_a[(z, p(s_t+n, a; θonline))]
-            # target_net.reset_noise()                              # Sample new target net noise, BUT we dont use noise for now
-            pns = target_net(next_states)                 # Probabilities p(s_t+n, ·; θtarget)
-            pns_a = pns[range(BATCH_SIZE), argmax_indices_ns]     # Double-Q probabilities p(s_t+n, argmax_a[(z, p(s_t+n, a; θonline))]; θtarget)
-            
-            # Compute Tz (Bellman operator T applied to z)
-            Tz = reward_batch.unsqueeze(1) + nonterminals.unsqueeze(1) * (GAMMA ** multi_step) * support.unsqueeze(0)  # Tz = R^n + (γ^n)z (accounting for terminal states)
-            Tz = Tz.clamp(min=Vmin, max=Vmax)                       # Clamp between supported values
-            # Compute L2 projection of Tz onto fixed support z
-            bot = (Tz - Vmin) / delta_z                             # bot = (Tz - Vmin) / Δz
-            lower, upper = bot.floor().to(torch.int64), bot.ceil().to(torch.int64)
-            # Fix disappearing probability mass when lower = bot = upper (bot is int)
-            lower[(upper > 0) * (lower == upper)] -= 1
-            upper[(lower < (atoms - 1)) * (lower == upper)] += 1
-            
-            # Distribute probability of Tz
-            m = torch.zeros([BATCH_SIZE, atoms], device = device).view(-1)
-            # offset = torch.linspace(0, ((BATCH_SIZE - 1) * atoms), BATCH_SIZE).unsqueeze(1).expand(BATCH_SIZE, atoms).to(action_batch)
-            temp1 = (pns_a * (upper.float() - bot)).view(-1)
-            temp1[atoms-1:-1:atoms] = 0
-            temp2 = (pns_a * (bot - lower.float())).view(-1)
-            temp2[0:-1:atoms] = 0
-            m = (m + temp1 + temp2).view(BATCH_SIZE,atoms)
-            # m.view(-1).index_add_(0, (lower + offset).view(-1), (pns_a * (upper.float() - bot)).view(-1))  # m_l = m_l + p(s_t+n, a*)(u - b)
-            # m.view(-1).index_add_(0, (upper + offset).view(-1), (pns_a * (bot - lower.float())).view(-1))  # m_u = m_u + p(s_t+n, a*)(b - l)
-      
-        log_ps = policy_net(state_batch)                  # Log probabilities log p(s_t, ·; θonline)
-        log_ps_a = log_ps[range(BATCH_SIZE), action_batch.view(-1)]          # log p(s_t, a_t; θonline)
-        entropy = - torch.sum(m * log_ps_a, 1).view(-1,1)
-        memory.update(idxs, entropy.detach().cpu().numpy())
-        loss = (weights * entropy).mean()
+        next_states_v = torch.cat([s if s is not None else batch.state[i] for i,s in enumerate(batch.next_state)]).to(device)
+        dones = np.stack(tuple(map(lambda s: s is None , batch.next_state)))
+        # next state distribution
+        next_distr_v, next_qvals_v = target_net.both(next_states_v)
+        next_actions = next_qvals_v.max(1)[1].data.cpu().numpy()
+        next_distr = target_net.apply_softmax(next_distr_v).data.cpu().numpy()
+        next_best_distr = next_distr[range(BATCH_SIZE), next_actions]
+        dones = dones.astype(np.bool)
+        # project our distribution using Bellman update
+        proj_distr = distr_projection(next_best_distr, reward_batch.cpu().numpy(), dones, Vmin, Vmax, atoms, GAMMA)
+        # calculate net output
+        distr_v = policy_net(state_batch)
+        state_action_values = distr_v[range(BATCH_SIZE), action_batch.view(-1)]
+        state_log_sm_v = F.log_softmax(state_action_values, dim=1)
+        proj_distr_v = torch.tensor(proj_distr).to(device)
+        entropy = (-state_log_sm_v * proj_distr_v).sum(dim=1)
+        if PRIORITY:        # KL divergence based priority  
+            memory.update(idxs, entropy.detach().cpu().numpy().reshape(-1,1))
+            loss = (weights * entropy).mean()
+        else:
+            loss = entropy.mean()
     else:
-        
         state_action_values = policy_net(state_batch).gather(1, action_batch)
-    
         next_state_values = torch.zeros(BATCH_SIZE, device=device)
         if DOUBLE:
             argmax_a_q_sp = policy_net(non_final_next_states).max(1)[1]
@@ -174,8 +148,14 @@ def optimize_model():
         else:
             next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
         expected_state_action_values = (next_state_values * GAMMA) + reward_batch.float()
-
-        loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
+        
+        if PRIORITY:    # TD error based priority  
+            td_errors = state_action_values - expected_state_action_values.unsqueeze(1)
+            td_errors = td_errors.detach().cpu().numpy()
+            memory.update(idxs, td_errors)
+            loss = F.smooth_l1_loss(weights * state_action_values, weights * expected_state_action_values.unsqueeze(1))
+        else:
+            loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
 
     optimizer.zero_grad()
     loss.backward()
@@ -498,6 +478,12 @@ if __name__ == '__main__':
         policy_net = distributionDQN(n_actions=env.action_space.n).to(device)
         target_net = distributionDQN(n_actions=env.action_space.n).to(device)
         target_net.load_state_dict(policy_net.state_dict())
+        atoms = 51
+        Vmin = -10
+        Vmax = 10
+        multi_step = 1
+        delta_z = (Vmax - Vmin) / (atoms - 1)
+        support = torch.linspace(Vmin, Vmax, atoms).to(device=device)
     else:
         if architecture == 'resnet18':
             policy_net = resnet18(pretrained=pretrain)
@@ -553,13 +539,6 @@ if __name__ == '__main__':
     # initialize replay memory
     if PRIORITY:
         # parameters for KL priority
-        atoms = 51
-        Vmin = -10
-        Vmax = 10
-        multi_step = 1
-        delta_z = (Vmax - Vmin) / (atoms - 1)
-        support = torch.linspace(Vmin, Vmax, atoms).to(device=device)
-        
         memory = PrioritizedReplay(MEMORY_SIZE)
     else:
         memory = ReplayMemory(MEMORY_SIZE)
