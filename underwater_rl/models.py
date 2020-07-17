@@ -7,7 +7,7 @@ try:
 except ImportError:
     from torch.utils.model_zoo import load_url as load_state_dict_from_url
 
-__all__ = ['DQNbn', 'DQN', 'DuelingDQN', 'softDQN', 'distributionDQN', 'ResNet', 'resnet18', 'resnet10', 'resnet12', 'resnet14', 'PolicyGradient']
+__all__ = ['DQNbn', 'DQN', 'DuelingDQN', 'softDQN', 'distributionDQN', 'ResNet', 'resnet18', 'resnet10', 'resnet12', 'resnet14', 'PolicyGradient', 'Actor', 'Critic']
 
 
 class DQNbn(nn.Module):
@@ -94,6 +94,59 @@ class PolicyGradient(nn.Module):
         #action_prob = self.softmax(x)
         return action_prob
 
+class Critic(nn.Module):
+    def __init__(self, in_channels=4, n_actions=14):
+        """
+        Initialize Deep Q Network
+
+        Args:
+            in_channels (int): number of input channels
+            n_actions (int): number of outputs
+        """
+        super(Critic, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels, 32, kernel_size=8, stride=4)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
+        self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
+        self.fc4 = nn.Linear(7 * 7 * 64, 512)
+        self.head = nn.Linear(512, 1)
+
+    def forward(self, x):
+        x = x.float() / 255
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x = F.relu(self.fc4(x.reshape(x.size(0), -1)))
+        return self.head(x)
+
+class Actor(nn.Module):
+    def __init__(self, in_channels=4, n_actions=14):
+        """
+        Initialize Deep Q Network
+
+        Args:
+            in_channels (int): number of input channels
+            n_actions (int): number of outputs
+        """
+        super(Actor, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels, 32, kernel_size=8, stride=4)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
+        self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
+        self.fc4 = nn.Linear(7 * 7 * 64, 512)
+        self.head = nn.Linear(512, n_actions)
+
+    def forward(self, x):
+        x = x.float() / 255
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x = F.relu(self.fc4(x.reshape(x.size(0), -1)))
+        action_prob = self.head(x)
+        #action_prob = self.softmax(x)
+        return action_prob
+
+
+
+
 
 class DuelingDQN(nn.Module):
     def __init__(self, in_channels=4, n_actions=14):
@@ -166,7 +219,7 @@ class softDQN(nn.Module):
 class distributionDQN(nn.Module):
     def __init__(self, in_channels=4, n_actions=14):
         """
-        Deep Q Network with KL Priority 
+        Deep Q Network with KL Priority
 
         Args:
             in_channels (int): number of input channels
@@ -210,7 +263,7 @@ class distributionDQN(nn.Module):
 
     def apply_softmax(self, t):
         return self.softmax(t.view(-1, self.atoms)).view(t.size())
-    
+
 # ResNet Below
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
     """3x3 convolution with padding"""

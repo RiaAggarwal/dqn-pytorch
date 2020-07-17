@@ -100,8 +100,10 @@ def train(env, n_episodes, history, render=False):
         action_pool = []
         reward_pool = []
         state_pool = []
+        value_pool = []
         for t in count():
             action_prob = policy_net.forward(state.to(device))
+            value = value_net.forward(state.to(device))
             #print(action_prob)
             action  = select_action(action_prob)
             #print(action)
@@ -126,13 +128,15 @@ def train(env, n_episodes, history, render=False):
             action_pool.append(action)
             action_prob_pool.append(action_prob)
             reward_pool.append(reward)
+            state_pool.append(state)
+            value_pool.append(value.item())
 
             state = next_state
 
-            if steps_done > INITIAL_MEMORY:
-                #optimize_model()
-                if steps_done % TARGET_UPDATE == 0:
-                    target_net.load_state_dict(policy_net.state_dict())
+            # if steps_done > INITIAL_MEMORY:
+            #     #optimize_model()
+            #     if steps_done % TARGET_UPDATE == 0:
+            #         target_net.load_state_dict(policy_net.state_dict())
 
             if done:
                 break
@@ -149,23 +153,32 @@ def train(env, n_episodes, history, render=False):
         reward_pool = np.array(reward_pool)
         reward_pool = torch.from_numpy(reward_pool).float().to(device)
 
+        value_pool = np.array(value_pool)
+        value_pool = torch.from_numpy(value_pool).float().to(device)
+
         reward_pool = discount_reward(reward_pool, GAMMA)
 
         label = action_pool
         act_p = action_prob_pool.squeeze()
         label = label.long()
 
-        loss_fn = nn.CrossEntropyLoss(reduction="none")
-        loss_value = loss_fn(act_p, label)
-        loss = torch.dot(loss_value, reward_pool)
-        #loss = Variable(loss, requires_grad = True)
-        optimizer.zero_grad()
-        loss.backward()
+        policy_loss_fn = nn.CrossEntropyLoss(reduction="none")
+        policy_loss_value = policy_loss_fn(act_p, label)
+        policy_loss = torch.dot(policy_loss_value, value_pool)
+
+        value_loss_fn = nn.MSELoss()
+        value_loss = value_loss_fn(value_pool, reward_pool)
+
+        optimizerP.zero_grad()
+        optimizerV.zero_grad()
+
+        policy_loss.backward()
+        value_loss.backward()
         #for param in policy_net.parameters():
             #param.grad.data.clamp_(-1, 1)
             #print(param.grad)
-        optimizer.step()
-
+        optimizerP.step()
+        optimizerV.step()
         #optimize_model(action_prob_pool, action_pool, reward_pool)
 
         if episode % LOG_INTERVAL == 0:
@@ -372,12 +385,12 @@ if __name__ == '__main__':
     #architecture = args.network
     pretrain = args.pretrain
 
-    policy_net = PolicyGradient(n_actions=env.action_space.n).to(device)
-    target_net = PolicyGradient(n_actions=env.action_space.n).to(device)
-    target_net.load_state_dict(policy_net.state_dict())
+    policy_net = Actor(n_actions=env.action_space.n).to(device)
+    value_net = Critic().to(device)
 
     # setup optimizer
-    optimizer = optim.Adam(policy_net.parameters(), lr=lr)
+    optimizerP = optim.Adam(policy_net.parameters(), lr=lr)
+    optimizerV = optim.Adam(value_net.parameters(), lr=lr)
     steps_done = 0
     epoch = 0
 
