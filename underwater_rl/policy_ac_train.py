@@ -102,6 +102,7 @@ def train(env, n_episodes, history, render=False):
         state_pool = []
         value_pool = []
         next_value_pool = []
+        masks = []
         for t in count():
             action_prob = policy_net.forward(state.to(device))
             value = value_net.forward(state.to(device))
@@ -119,10 +120,12 @@ def train(env, n_episodes, history, render=False):
 
             if not done:
                 next_state = get_state(obs)
-                next_value = value_net.forward(next_state.to(device))
+                next_value = value_net.forward(next_state.to(device)).detach()
+                #next_value_pool.append(next_value)
+                #print(next_value)
             else:
                 next_state = None
-                next_value = 0.0
+                next_value = torch.tensor([[0.0]], dtype=torch.float, device=device)
 
             if args.debug:
                 display_state(next_state)
@@ -134,6 +137,7 @@ def train(env, n_episodes, history, render=False):
             state_pool.append(state)
             value_pool.append(value)
             next_value_pool.append(next_value)
+            masks.append(1-done)
 
             state = next_state
 
@@ -154,6 +158,9 @@ def train(env, n_episodes, history, render=False):
         action_pool = np.array(action_pool)
         action_pool = torch.from_numpy(action_pool).float().to(device)
 
+        masks = np.array(masks)
+        masks = torch.from_numpy(masks).to(device)
+
         reward_pool = np.array(reward_pool)
         reward_pool = torch.from_numpy(reward_pool).float().to(device)
 
@@ -173,13 +180,14 @@ def train(env, n_episodes, history, render=False):
         #print(act_p.size())
         #print(value_pool)
         #print(reward_pool.size())
-        advantage = reward_pool + GAMMA*next_value_pool.detach() - vals
+        advantage = reward_pool + GAMMA*next_value_pool - vals
+        advantage_loss = reward_pool + GAMMA*next_value_pool - value_pool
         policy_loss_fn = nn.CrossEntropyLoss(reduction="none")
         policy_loss_value = policy_loss_fn(act_p, label)
         policy_loss = torch.dot(policy_loss_value, advantage)
 
         #value_loss_fn = nn.MSELoss()
-        value_loss = advantage.pow(2).mean()
+        value_loss = advantage_loss.pow(2).mean()
 
         optimizerP.zero_grad()
         optimizerV.zero_grad()
