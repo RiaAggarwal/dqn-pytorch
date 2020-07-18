@@ -65,7 +65,7 @@ def discount_reward(r_dic, gamma):
         else:
             r = r * gamma
             r_dic[i] = r
-    r_dic = (r_dic - r_dic.mean()) / (r_dic.std() + 1e-8)
+    #r_dic = (r_dic - r_dic.mean()) / (r_dic.std() + 1e-8)
     return r_dic
 
 def optimize_model(act_p, act, reward):
@@ -104,7 +104,7 @@ def train(env, n_episodes, history, render=False):
         for t in count():
             action_prob = policy_net.forward(state.to(device))
             value = value_net.forward(state.to(device))
-            #print(action_prob)
+            #print(value)
             action  = select_action(action_prob)
             #print(action)
 
@@ -129,7 +129,7 @@ def train(env, n_episodes, history, render=False):
             action_prob_pool.append(action_prob)
             reward_pool.append(reward)
             state_pool.append(state)
-            value_pool.append(value.item())
+            value_pool.append(value)
 
             state = next_state
 
@@ -153,18 +153,23 @@ def train(env, n_episodes, history, render=False):
         reward_pool = np.array(reward_pool)
         reward_pool = torch.from_numpy(reward_pool).float().to(device)
 
-        value_pool = np.array(value_pool)
-        value_pool = torch.from_numpy(value_pool).float().to(device)
+        value_pool = torch.stack(value_pool)
+        value_pool = value_pool.squeeze()
 
         reward_pool = discount_reward(reward_pool, GAMMA)
 
         label = action_pool
         act_p = action_prob_pool.squeeze()
+        vals = value_pool.detach()
         label = label.long()
+        #print(vals)
+        #print(act_p.size())
+        #print(value_pool)
+        #print(reward_pool.size())
 
         policy_loss_fn = nn.CrossEntropyLoss(reduction="none")
         policy_loss_value = policy_loss_fn(act_p, label)
-        policy_loss = torch.dot(policy_loss_value, value_pool)
+        policy_loss = torch.dot(policy_loss_value, vals)
 
         value_loss_fn = nn.MSELoss()
         value_loss = value_loss_fn(value_pool, reward_pool)
@@ -174,7 +179,7 @@ def train(env, n_episodes, history, render=False):
 
         policy_loss.backward()
         value_loss.backward()
-        #for param in policy_net.parameters():
+        #for param in value_net.parameters():
             #param.grad.data.clamp_(-1, 1)
             #print(param.grad)
         optimizerP.step()
@@ -220,7 +225,7 @@ def save_checkpoint(store_dir):
     global steps_done
     global epoch
     torch.save(
-        {'Net': policy_net.state_dict(), 'Optimizer': optimizer.state_dict(), 'Steps_Done': steps_done, 'Epoch': epoch},
+        {'Net': policy_net.state_dict(), 'Optimizer': optimizerP.state_dict(), 'Steps_Done': steps_done, 'Epoch': epoch},
         os.path.join(store_dir, 'dqn_pong_model'))
     pickle.dump(history, open(os.path.join(store_dir, 'history.p'), 'wb'))
 
