@@ -124,7 +124,7 @@ class DRQN(DQN):
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
         x, self.hidden = self.lstm(x.reshape(x.size(0), 1, -1), self.hidden)
-        return self.head(x.reshape(-1, self.hidden_dim))
+        return self.head(x.reshape(-1, self.hidden_dim))   # todo: view instead of reshape?
 
 
 class DuelingDQN(nn.Module):

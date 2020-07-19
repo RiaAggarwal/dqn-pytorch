@@ -90,8 +90,11 @@ def toc(tstart, nm=""):
 
 
 def optimize_model():
-    if len(memory) < BATCH_SIZE:
+    if len(memory) < 1 and isinstance(memory, EpisodicMemory):
         return
+    elif len(memory) < BATCH_SIZE:
+        return
+
     if PRIORITY:
         idxs, weights, transitions = memory.sample(BATCH_SIZE)
         weights = torch.from_numpy(weights).float().to(device)
@@ -184,9 +187,14 @@ def train(env, n_episodes, history, render_mode=False):
                 memory.store(state, action.to('cpu'), next_state, reward.to('cpu'))
             state = next_state
 
-            if steps_done > INITIAL_MEMORY:
-                optimize_model()
-                update_target_net()
+            if architecture == 'lstm':
+                if episode >= INITIAL_MEMORY:
+                    optimize_model()
+                    update_target_net()
+            else:
+                if steps_done > INITIAL_MEMORY:
+                    optimize_model()
+                    update_target_net()
 
             if done:
                 break
