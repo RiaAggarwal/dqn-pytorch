@@ -123,6 +123,7 @@ def optimize_model():
 
     if architecture == 'lstm':
         policy_net.zero_hidden()
+        target_net.zero_hidden()
     state_action_values = policy_net(state_batch).gather(1, action_batch)
 
     next_state_values = torch.zeros(BATCH_SIZE, device=device)
