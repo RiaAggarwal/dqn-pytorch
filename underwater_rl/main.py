@@ -16,6 +16,7 @@ import gym
 from matplotlib import pyplot as plt
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Categorical
@@ -26,12 +27,12 @@ try:
     from .memory import *
     from .models import *
     from .wrappers import *
-    from utils import convert_images_to_video
+    from utils import convert_images_to_video, distr_projection
 except ImportError:
     from memory import *
     from models import *
     from wrappers import *
-    from utils import convert_images_to_video
+    from utils import convert_images_to_video, distr_projection
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -60,22 +61,20 @@ def select_e_greedy_action(state):
     steps_done += 1
     if sample > eps_threshold:
         with torch.no_grad():
-            return policy_net(state.to(device)).max(1)[1]
+            if architecture == 'distribution_dqn':
+                return (policy_net.qvals(state.to(device))).argmax()
+            else:
+                return policy_net(state.to(device)).max(1)[1]
     else:
         return torch.tensor([[random.randrange(env.action_space.n)]], device=device, dtype=torch.long)
 
 
 def select_soft_action(state):
-    # state = torch.FloatTensor(state).unsqueeze(0).to(device)
-    # print('state : ', state)
     with torch.no_grad():
         q = policy_net.forward(state.to(device))
         v = policy_net.getV(q).squeeze()
-        # print('q & v', q, v)
         dist = torch.exp((q - v) / policy_net.alpha)
-        # print(dist)
         dist = dist / torch.sum(dist)
-        # print(dist)
         c = Categorical(dist)
         a = c.sample()
     return torch.tensor([[a.item()]], device=device, dtype=torch.long)
@@ -121,37 +120,59 @@ def optimize_model():
     action_batch = torch.cat(actions)
     reward_batch = torch.cat(rewards)
 
-    if architecture == 'lstm':
-        policy_net.zero_hidden()
-        target_net.zero_hidden()
-    state_action_values = policy_net(state_batch).gather(1, action_batch)
-
-    next_state_values = torch.zeros(BATCH_SIZE, device=device)
-    if DOUBLE:
-        argmax_a_q_sp = policy_net(non_final_next_states).max(1)[1]
-        q_sp = target_net(non_final_next_states).detach()
-        next_state_values[non_final_mask] = q_sp[torch.arange(torch.sum(non_final_mask), device=device), argmax_a_q_sp]
-    elif architecture == 'soft_dqn':
-        next_state_action_values[non_final_mask] = target_net(non_final_next_states).detach()
-        next_state_values[non_final_mask] = target_net.getV(next_state_action_values[non_final_mask]).detach()
+    if architecture == 'distribution_dqn':
+        next_states_v = torch.cat(
+            [s if s is not None else batch.state[i] for i, s in enumerate(batch.next_state)]).to(device)
+        dones = np.stack(tuple(map(lambda s: s is None, batch.next_state)))
+        # next state distribution
+        next_distr_v, next_qvals_v = target_net.both(next_states_v)
+        next_actions = next_qvals_v.max(1)[1].data.cpu().numpy()
+        next_distr = target_net.apply_softmax(next_distr_v).data.cpu().numpy()
+        next_best_distr = next_distr[range(BATCH_SIZE), next_actions]
+        dones = dones.astype(np.bool)
+        # project our distribution using Bellman update
+        proj_distr = distr_projection(next_best_distr, reward_batch.cpu().numpy(), dones, Vmin, Vmax, atoms, GAMMA)
+        # calculate net output
+        distr_v = policy_net(state_batch)
+        state_action_values = distr_v[range(BATCH_SIZE), action_batch.view(-1)]
+        state_log_sm_v = F.log_softmax(state_action_values, dim=1)
+        proj_distr_v = torch.tensor(proj_distr).to(device)
+        entropy = (-state_log_sm_v * proj_distr_v).sum(dim=1)
+        if PRIORITY:  # KL divergence based priority
+            memory.update(idxs, entropy.detach().cpu().numpy().reshape(-1, 1))
+            loss = (weights * entropy).mean()
+        else:
+            loss = entropy.mean()
     else:
-        next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
-    expected_state_action_values = (next_state_values * GAMMA) + reward_batch.float()
+        if architecture == 'lstm':
+            policy_net.zero_hidden()
+            target_net.zero_hidden()
 
-    if PRIORITY:
-        td_errors = state_action_values - expected_state_action_values.unsqueeze(1)
-        td_errors = td_errors.detach().cpu().numpy()
-        memory.update(idxs, td_errors)
-        loss = F.smooth_l1_loss(weights * state_action_values, weights * expected_state_action_values.unsqueeze(1))
+        state_action_values = policy_net(state_batch).gather(1, action_batch)
+        next_state_values = torch.zeros(BATCH_SIZE, device=device)
+        if DOUBLE:
+            argmax_a_q_sp = policy_net(non_final_next_states).max(1)[1]
+            q_sp = target_net(non_final_next_states).detach()
+            next_state_values[non_final_mask] = q_sp[
+                torch.arange(torch.sum(non_final_mask), device=device), argmax_a_q_sp]
+        elif architecture == 'soft_dqn':
+            raise NotImplementedError("soft DQN is not yet implemented")
+            # next_state_action_values[non_final_mask] = target_net(non_final_next_states).detach()
+            # next_state_values[non_final_mask] = target_net.getV(next_state_action_values[non_final_mask]).detach()
+        else:
+            next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
+        expected_state_action_values = (next_state_values * GAMMA) + reward_batch.float()
 
-    else:
-        loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
+        if PRIORITY:  # TD error based priority
+            td_errors = state_action_values - expected_state_action_values.unsqueeze(1)
+            td_errors = td_errors.detach().cpu().numpy()
+            memory.update(idxs, td_errors)
+            loss = F.smooth_l1_loss(weights * state_action_values, weights * expected_state_action_values.unsqueeze(1))
+        else:
+            loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
 
     optimizer.zero_grad()
     loss.backward()
-    for name, param in policy_net.named_parameters():
-        if param.grad is not None:
-            param.grad.data.clamp_(-1, 1)
     optimizer.step()
 
 
@@ -180,6 +201,9 @@ def train(env, n_episodes, history, render_mode=False):
                 next_state = get_state(obs)
             else:
                 next_state = None
+
+            if args.debug:
+                display_state(next_state)
 
             reward = torch.tensor([reward], device=device)
             if architecture == 'lstm':
@@ -360,32 +384,32 @@ if __name__ == '__main__':
                           help='canvas width (default: 160)')
     env_args.add_argument('--height', default=160, type=int,
                           help='canvas height (default: 160)')
-    env_args.add_argument('--ball', default=3.0, type=float,
-                          help='ball speed (default: 3.0)')
+    env_args.add_argument('--ball', default=1.0, type=float,
+                          help='ball speed (default: 1.0)')
     env_args.add_argument('--ball-size', dest='ball_size', default=2.0, type=float,
                           help='ball size (default: 2.0)')
-    env_args.add_argument('--snell', default=3.0, type=float,
-                          help='snell speed (default: 3.0)')
+    env_args.add_argument('--snell', default=1.0, type=float,
+                          help='snell speed (default: 1.0)')
     env_args.add_argument('--no-refraction', dest='no_refraction', default=False, action='store_true',
                           help='set to disable refraction')
     env_args.add_argument('--uniform-speed', dest='uniform_speed', default=False, action='store_true',
                           help='set to disable a different ball speed in the Snell layer')
-    env_args.add_argument('--snell-width', dest='snell_width', default=40.0, type=float,
-                          help='snell speed (default: 40.0)')
+    env_args.add_argument('--snell-width', dest='snell_width', default=80.0, type=float,
+                          help='snell speed (default: 80.0)')
     env_args.add_argument('--snell-change', dest='snell_change', default=0, type=float,
                           help='Standard deviation of the speed change per step (default: 0)')
     env_args.add_argument('--snell-visible', dest='snell_visible', default='none', type=str,
                           choices=['human', 'machine', 'none'],
                           help="Determine whether snell is visible to when rendering ('render') or to the agent and "
                                "when rendering ('machine')")
-    env_args.add_argument('--paddle-speed', default=3.0, type=float,
-                          help='paddle speed (default: 3.0)')
-    env_args.add_argument('--paddle-angle', default=45, type=float,
-                          help='Maximum angle the ball can leave the paddle (default: 45deg)')
-    env_args.add_argument('--paddle-length', default=45, type=float,
-                          help='paddle length (default: 45)')
-    env_args.add_argument('--update-prob', dest='update_prob', default=0.2, type=float,
-                          help='Probability that the opponent moves in the direction of the ball (default: 0.2)')
+    env_args.add_argument('--paddle-speed', default=1.0, type=float,
+                          help='paddle speed (default: 1.0)')
+    env_args.add_argument('--paddle-angle', default=70, type=float,
+                          help='Maximum angle the ball can leave the paddle (default: 70deg)')
+    env_args.add_argument('--paddle-length', default=20, type=float,
+                          help='paddle length (default: 20)')
+    env_args.add_argument('--update-prob', dest='update_prob', default=0.4, type=float,
+                          help='Probability that the opponent moves in the direction of the ball (default: 0.4)')
     env_args.add_argument('--state', default='binary', type=str, choices=['binary', 'color'],
                           help='state representation (default: binary)')
 
@@ -494,13 +518,74 @@ if __name__ == '__main__':
 
     # create networks
     architecture = args.network
-    policy_net, target_net = create_networks(args.network, args.pretrain)
 
     # TODO: consider removing some of the wrappers - may improve performance
     if architecture == 'lstm':
         env = make_env(env, stack_frames=False, episodic_life=True, clip_rewards=True, max_and_skip=False)
     else:
         env = make_env(env, stack_frames=True, episodic_life=True, clip_rewards=True, max_and_skip=True)
+
+    pretrain = args.pretrain
+    if architecture == 'dqn_pong_model':
+        policy_net = DQN(n_actions=env.action_space.n).to(device)
+        target_net = DQN(n_actions=env.action_space.n).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+    elif architecture == 'soft_dqn':
+        policy_net = softDQN(n_actions=env.action_space.n).to(device)
+        target_net = softDQN(n_actions=env.action_space.n).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+    elif architecture == 'dueling_dqn':
+        policy_net = DuelingDQN(n_actions=env.action_space.n).to(device)
+        target_net = DuelingDQN(n_actions=env.action_space.n).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+    elif architecture == 'lstm':
+        policy_net = DRQN(n_actions=env.action_space.n).to(device)
+        target_net = DRQN(n_actions=env.action_space.n).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+    elif architecture == 'distribution_dqn':
+        policy_net = distributionDQN(n_actions=env.action_space.n).to(device)
+        target_net = distributionDQN(n_actions=env.action_space.n).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+        atoms = 51
+        Vmin = -10
+        Vmax = 10
+        multi_step = 1
+        delta_z = (Vmax - Vmin) / (atoms - 1)
+        support = torch.linspace(Vmin, Vmax, atoms).to(device=device)
+    else:
+        if architecture == 'resnet18':
+            policy_net = resnet18(pretrained=pretrain)
+            target_net = resnet18(pretrained=pretrain)
+        elif architecture == 'resnet10':
+            policy_net = resnet10()
+            target_net = resnet10()
+        elif architecture == 'resnet12':
+            policy_net = resnet12()
+            target_net = resnet12()
+        elif architecture == 'resnet14':
+            policy_net = resnet14()
+            target_net = resnet14()
+        else:
+            raise ValueError('''Need an available architecture:
+                    dqn_pong_model,
+                    soft_dqn,
+                    dueling_dqn,
+                    distribution_dqn,
+                    Resnet:
+                        resnet18,
+                        resnet10,
+                        resnet12,
+                        resnet14''')
+
+        num_ftrs = policy_net.fc.in_features
+        policy_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        policy_net.fc = nn.Linear(num_ftrs, env.action_space.n)
+        policy_net = policy_net.to(device)
+        num_ftrs = target_net.fc.in_features
+        target_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        target_net.fc = nn.Linear(num_ftrs, env.action_space.n)
+        target_net = target_net.to(device)
+        target_net.load_state_dict(policy_net.state_dict())
 
     # setup optimizer
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)

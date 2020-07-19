@@ -6,6 +6,7 @@ import os
 import shutil
 import subprocess
 from typing import List, Dict
+import time
 
 import yaml
 
@@ -102,4 +103,5 @@ if __name__ == '__main__':
                 files=' '.join(files), job_name=f'{args.name}.{n}')
             print(cmd)
             subprocess.run(cmd.split(' '))
+            time.sleep(10)  # give the cluster breathing room to reduce failures
         shutil.rmtree(TEMP_DIR)
