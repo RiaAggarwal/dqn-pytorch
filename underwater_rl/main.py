@@ -13,6 +13,7 @@ from collections import namedtuple
 from itertools import count
 
 import gym
+from matplotlib import pyplot as plt
 import numpy as np
 import torch
 import torch.nn.functional as F
