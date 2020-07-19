@@ -204,13 +204,12 @@ class MaxAndSkipEnv(gym.Wrapper):
 
         return max_frame, total_reward, done, info
 
-
-class FrameStackAndSkip(FrameStack):
-    def step(self, action):
-        for _ in range(self.stack_size):
-            ob, reward, done, info = self.env.step(action)
-            self.frames.append(ob)
-            return self._get_ob(), reward, done, info
+    def reset(self):
+        """Clear past frame buffer and init. to first obs. from inner env."""
+        self._obs_buffer.clear()
+        obs = self.env.reset()
+        self._obs_buffer.append(obs)
+        return obs
 
 
 class NoopResetEnv(gym.Wrapper):

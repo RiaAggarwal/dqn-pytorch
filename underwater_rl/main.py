@@ -106,8 +106,8 @@ def optimize_model():
     """
     batch = Transition(*zip(*transitions))
 
-    actions = tuple((map(lambda a: torch.tensor([[a]], dtype=torch.int64, device=device), batch.action)))
-    rewards = tuple((map(lambda r: torch.tensor([r], dtype=torch.int64, device=device), batch.reward)))
+    actions = tuple((map(lambda a: torch.tensor([[a]], device=device), batch.action)))
+    rewards = tuple((map(lambda r: torch.tensor([r], device=device), batch.reward)))
 
     non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)),
                                   device=device, dtype=torch.uint8)
