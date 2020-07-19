@@ -68,6 +68,7 @@ class DQN(nn.Module):
         x = F.relu(self.fc4(x.reshape(x.size(0), -1)))
         return self.head(x)
 
+
 class PolicyGradient(nn.Module):
     def __init__(self, in_channels=4, n_actions=14):
         """
@@ -94,7 +95,7 @@ class PolicyGradient(nn.Module):
         x = F.relu(self.conv3(x))
         x = F.relu(self.fc4(x.reshape(x.size(0), -1)))
         action_prob = self.head(x)
-        #action_prob = self.softmax(x)
+        # action_prob = self.softmax(x)
         return action_prob
 
 
