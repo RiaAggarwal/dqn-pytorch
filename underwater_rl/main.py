@@ -218,6 +218,20 @@ def log_checkpoint(epoch, history, steps):
                 f'Avg steps: {avg_steps}')
 
 
+def display_state(state: torch.Tensor):
+    """
+    Displays the passed state using matplotlib
+
+    :param state: torch.Tensor
+    :return:
+    """
+    np_state = state.numpy().squeeze()
+    fig, axs = plt.subplots(1, len(np_state), figsize=(20, 5))
+    for img, ax in zip(np_state, axs):
+        ax.imshow(img, cmap='gray')
+    fig.show()
+
+
 def test(env, n_episodes, policy, render_mode=True):
     # todo: look into using the Monitor wrapper
     save_dir = os.path.join(args.store_dir, 'video')
@@ -407,6 +421,10 @@ if __name__ == '__main__':
     resume_args.add_argument('--store-dir', dest='store_dir',
                              default=os.path.join('..', 'experiments', time.strftime("%Y-%m-%d %H.%M.%S")),
                              help='Path to directory to store experiment results (default: ./experiments/<timestamp>/')
+
+    '''debug args'''
+    debug_args = parser.add_argument_group("Debug")
+    debug_args.add_argument('--debug', action='store_true', help='Debug mode')
 
     args = parser.parse_args()
 
