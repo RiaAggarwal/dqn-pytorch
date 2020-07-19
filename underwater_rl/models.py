@@ -114,7 +114,8 @@ class DRQN(DQN):
         self.zero_hidden()
 
     def zero_hidden(self, batch_size=1):
-        self.hidden = (torch.randn(1, batch_size, self.hidden_dim), torch.randn(1, batch_size, self.hidden_dim))
+        self.hidden = (torch.randn(1, batch_size, self.hidden_dim).to(device),
+                       torch.randn(1, batch_size, self.hidden_dim).to(device))
 
     def forward(self, x):
         x = x.float() / 255
