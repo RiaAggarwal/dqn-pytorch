@@ -59,14 +59,9 @@ class EpisodicMemory(object):
         episodes_replay = random.sample(self.memory, batch_size)
         batch = []
         for e in episodes_replay:
-            start = random.randint(0, len(e) - 1)
+            start = min(random.randint(0, len(e) - 1), len(e) - sequence_length)
             b = e[start:start + sequence_length]
-            while len(b) < sequence_length:
-                b.append(Transition(
-                    state=torch.zeros_like(b[0].state),
-                    action=torch.zeros_like(b[0].action),
-                    next_state=None,
-                    reward=torch.zeros_like(b[0].reward)))
+            assert len(b) == sequence_length
             batch.append(b)
         return batch.pop()
 
