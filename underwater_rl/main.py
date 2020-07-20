@@ -27,7 +27,7 @@ try:
     from .memory import *
     from .models import *
     from .wrappers import *
-    from utils import convert_images_to_video, distr_projection
+    from .utils import convert_images_to_video, distr_projection
 except ImportError:
     from memory import *
     from models import *
@@ -89,24 +89,11 @@ def toc(tstart, nm=""):
 
 
 def optimize_model():
-    if len(memory) < 1 and isinstance(memory, EpisodicMemory):
-        return
-    elif len(memory) < BATCH_SIZE:
-        return
-
     if PRIORITY:
         idxs, weights, transitions = memory.sample(BATCH_SIZE)
         weights = torch.from_numpy(weights).float().to(device)
     else:
         transitions = memory.sample(BATCH_SIZE)
-    """
-    zip(*transitions) unzips the transitions into
-    Transition(*) creates new named tuple
-    batch.state - tuple of all the states (each state is a tensor)
-    batch.next_state - tuple of all the next states (each state is a tensor)
-    batch.reward - tuple of all the rewards (each reward is a float)
-    batch.action - tuple of all the actions (each action is an int)
-    """
     batch = Transition(*zip(*transitions))
 
     actions = tuple((map(lambda a: torch.tensor([[a]], device=device), batch.action)))
@@ -131,7 +118,8 @@ def optimize_model():
         next_best_distr = next_distr[range(BATCH_SIZE), next_actions]
         dones = dones.astype(np.bool)
         # project our distribution using Bellman update
-        proj_distr = distr_projection(next_best_distr, reward_batch.cpu().numpy(), dones, Vmin, Vmax, atoms, GAMMA)
+        proj_distr = distr_projection(next_best_distr, reward_batch.cpu().numpy(), dones,
+                                      policy_net.Vmin, policy_net.Vmax, policy_net.atoms, GAMMA)
         # calculate net output
         distr_v = policy_net(state_batch)
         state_action_values = distr_v[range(BATCH_SIZE), action_batch.view(-1)]
@@ -206,20 +194,10 @@ def train(env, n_episodes, history, render_mode=False):
                 display_state(next_state)
 
             reward = torch.tensor([reward], device=device)
-            if architecture == 'lstm':
-                memory.store(episode, state, action.to('cpu'), next_state, reward.to('cpu'))
-            else:
-                memory.store(state, action.to('cpu'), next_state, reward.to('cpu'))
+            memory_store(episode, state, action, reward, next_state)
             state = next_state
 
-            if architecture == 'lstm':
-                if episode >= INITIAL_MEMORY:
-                    optimize_model()
-                    update_target_net()
-            else:
-                if steps_done > INITIAL_MEMORY:
-                    optimize_model()
-                    update_target_net()
+            dispatch_optimize(episode)
 
             if done:
                 break
@@ -238,6 +216,24 @@ def train(env, n_episodes, history, render_mode=False):
         shutil.rmtree(save_dir)
 
     return history
+
+
+def dispatch_optimize(episode):
+    if architecture == 'lstm':
+        if episode >= INITIAL_MEMORY and len(memory) >= 1:
+            optimize_model()
+            update_target_net()
+    else:
+        if steps_done > INITIAL_MEMORY and len(memory) >= BATCH_SIZE:
+            optimize_model()
+            update_target_net()
+
+
+def memory_store(episode, state, action, reward, next_state):
+    if isinstance(memory, EpisodicMemory):
+        memory.store(episode, state, action.to('cpu'), next_state, reward.to('cpu'))
+    else:
+        memory.store(state, action.to('cpu'), next_state, reward.to('cpu'))
 
 
 def update_target_net():
@@ -374,6 +370,98 @@ def initialize_replay_memory():
             return ReplayMemory(MEMORY_SIZE)
 
 
+def dispatch_make_env():
+    env = gym.make(
+        "gym_dynamic_pong:dynamic-pong-v1",
+        max_score=20,
+        width=args.width,
+        height=args.height,
+        default_speed=args.ball,
+        snell_speed=args.snell,
+        snell_width=args.snell_width,
+        snell_change=args.snell_change,
+        snell_visible=args.snell_visible,
+        refract=not args.no_refraction,
+        uniform_speed=args.uniform_speed,
+        our_paddle_speed=args.paddle_speed,
+        their_paddle_speed=args.paddle_speed,
+        our_paddle_height=args.paddle_length,
+        their_paddle_height=args.paddle_length,
+        our_paddle_angle=math.radians(args.paddle_angle),
+        their_paddle_angle=math.radians(args.paddle_angle),
+        their_update_probability=args.update_prob,
+        ball_size=args.ball_size,
+        state_type=args.state,
+    )
+
+    # TODO: consider removing some of the wrappers - may improve performance
+    if architecture == 'lstm':
+        env = make_env(env, stack_frames=False, episodic_life=True, clip_rewards=True, max_and_skip=False)
+    else:
+        env = make_env(env, stack_frames=True, episodic_life=True, clip_rewards=True, max_and_skip=True)
+    return env
+
+
+def get_models():
+    if architecture == 'dqn_pong_model':
+        policy_net = DQN(n_actions=env.action_space.n).to(device)
+        target_net = DQN(n_actions=env.action_space.n).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+    elif architecture == 'soft_dqn':
+        policy_net = softDQN(n_actions=env.action_space.n).to(device)
+        target_net = softDQN(n_actions=env.action_space.n).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+    elif architecture == 'dueling_dqn':
+        policy_net = DuelingDQN(n_actions=env.action_space.n).to(device)
+        target_net = DuelingDQN(n_actions=env.action_space.n).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+    elif architecture == 'lstm':
+        policy_net = DRQN(n_actions=env.action_space.n).to(device)
+        target_net = DRQN(n_actions=env.action_space.n).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+    elif architecture == 'distribution_dqn':
+        policy_net = DistributionalDQN(n_actions=env.action_space.n).to(device)
+        target_net = DistributionalDQN(n_actions=env.action_space.n).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+    else:
+        if architecture == 'resnet18':
+            policy_net = resnet18(pretrained=pretrain)
+            target_net = resnet18(pretrained=pretrain)
+        elif architecture == 'resnet10':
+            policy_net = resnet10()
+            target_net = resnet10()
+        elif architecture == 'resnet12':
+            policy_net = resnet12()
+            target_net = resnet12()
+        elif architecture == 'resnet14':
+            policy_net = resnet14()
+            target_net = resnet14()
+        else:
+            raise ValueError('''Need an available architecture:
+                    dqn_pong_model,
+                    soft_dqn,
+                    dueling_dqn,
+                    distribution_dqn,
+                    lstm,
+                    Resnet:
+                        resnet18,
+                        resnet10,
+                        resnet12,
+                        resnet14''')
+
+        num_ftrs = policy_net.fc.in_features
+        policy_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        policy_net.fc = nn.Linear(num_ftrs, env.action_space.n)
+        policy_net = policy_net.to(device)
+        num_ftrs = target_net.fc.in_features
+        target_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        target_net.fc = nn.Linear(num_ftrs, env.action_space.n)
+        target_net = target_net.to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+
+    return policy_net, target_net
+
+
 if __name__ == '__main__':
     # arguments
     parser = argparse.ArgumentParser(description='Dynamic Pong RL')
@@ -486,107 +574,16 @@ if __name__ == '__main__':
     CHECKPOINT_INTERVAL = 100
 
     resume = args.resume
+    architecture = args.network
+    pretrain = args.pretrain
 
     logger = get_logger(args.store_dir)
+
     logger.info(get_args_status_string(parser, args))
     logger.info(f'Device: {device}')
 
-    # create environment
-    # env = gym.make("PongNoFrameskip-v4")
-    env = gym.make(
-        "gym_dynamic_pong:dynamic-pong-v1",
-        max_score=20,
-        width=args.width,
-        height=args.height,
-        default_speed=args.ball,
-        snell_speed=args.snell,
-        snell_width=args.snell_width,
-        snell_change=args.snell_change,
-        snell_visible=args.snell_visible,
-        refract=not args.no_refraction,
-        uniform_speed=args.uniform_speed,
-        our_paddle_speed=args.paddle_speed,
-        their_paddle_speed=args.paddle_speed,
-        our_paddle_height=args.paddle_length,
-        their_paddle_height=args.paddle_length,
-        our_paddle_angle=math.radians(args.paddle_angle),
-        their_paddle_angle=math.radians(args.paddle_angle),
-        their_update_probability=args.update_prob,
-        ball_size=args.ball_size,
-        state_type=args.state,
-    )
-
-    # create networks
-    architecture = args.network
-
-    # TODO: consider removing some of the wrappers - may improve performance
-    if architecture == 'lstm':
-        env = make_env(env, stack_frames=False, episodic_life=True, clip_rewards=True, max_and_skip=False)
-    else:
-        env = make_env(env, stack_frames=True, episodic_life=True, clip_rewards=True, max_and_skip=True)
-
-    pretrain = args.pretrain
-    if architecture == 'dqn_pong_model':
-        policy_net = DQN(n_actions=env.action_space.n).to(device)
-        target_net = DQN(n_actions=env.action_space.n).to(device)
-        target_net.load_state_dict(policy_net.state_dict())
-    elif architecture == 'soft_dqn':
-        policy_net = softDQN(n_actions=env.action_space.n).to(device)
-        target_net = softDQN(n_actions=env.action_space.n).to(device)
-        target_net.load_state_dict(policy_net.state_dict())
-    elif architecture == 'dueling_dqn':
-        policy_net = DuelingDQN(n_actions=env.action_space.n).to(device)
-        target_net = DuelingDQN(n_actions=env.action_space.n).to(device)
-        target_net.load_state_dict(policy_net.state_dict())
-    elif architecture == 'lstm':
-        policy_net = DRQN(n_actions=env.action_space.n).to(device)
-        target_net = DRQN(n_actions=env.action_space.n).to(device)
-        target_net.load_state_dict(policy_net.state_dict())
-    elif architecture == 'distribution_dqn':
-        policy_net = distributionDQN(n_actions=env.action_space.n).to(device)
-        target_net = distributionDQN(n_actions=env.action_space.n).to(device)
-        target_net.load_state_dict(policy_net.state_dict())
-        atoms = 51
-        Vmin = -10
-        Vmax = 10
-        multi_step = 1
-        delta_z = (Vmax - Vmin) / (atoms - 1)
-        support = torch.linspace(Vmin, Vmax, atoms).to(device=device)
-    else:
-        if architecture == 'resnet18':
-            policy_net = resnet18(pretrained=pretrain)
-            target_net = resnet18(pretrained=pretrain)
-        elif architecture == 'resnet10':
-            policy_net = resnet10()
-            target_net = resnet10()
-        elif architecture == 'resnet12':
-            policy_net = resnet12()
-            target_net = resnet12()
-        elif architecture == 'resnet14':
-            policy_net = resnet14()
-            target_net = resnet14()
-        else:
-            raise ValueError('''Need an available architecture:
-                    dqn_pong_model,
-                    soft_dqn,
-                    dueling_dqn,
-                    distribution_dqn,
-                    lstm,
-                    Resnet:
-                        resnet18,
-                        resnet10,
-                        resnet12,
-                        resnet14''')
-
-        num_ftrs = policy_net.fc.in_features
-        policy_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        policy_net.fc = nn.Linear(num_ftrs, env.action_space.n)
-        policy_net = policy_net.to(device)
-        num_ftrs = target_net.fc.in_features
-        target_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        target_net.fc = nn.Linear(num_ftrs, env.action_space.n)
-        target_net = target_net.to(device)
-        target_net.load_state_dict(policy_net.state_dict())
+    env = dispatch_make_env()
+    policy_net, target_net = get_models()
 
     # setup optimizer
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)
