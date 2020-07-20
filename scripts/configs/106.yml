@@ -5,7 +5,7 @@ ball: 1.0
 ball_size: 2.0
 snell: 1.0
 snell_width: 80.0
-snell_change: 0
+snell_change: 0.01
 snell_visible: "none"
 #no_refraction:  # comment out to turn off
 #uniform_speed:  # comment out to turn off
