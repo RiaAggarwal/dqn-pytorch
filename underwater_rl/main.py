@@ -419,7 +419,7 @@ if __name__ == '__main__':
                          help='learning rate (default: 1e-4)')
     rl_args.add_argument('--network', default='dqn_pong_model',
                          choices=['dqn_pong_model', 'soft_dqn', 'dueling_dqn', 'resnet18', 'resnet10', 'resnet12',
-                                  'resnet14', 'lstm'],
+                                  'resnet14', 'lstm', 'distribution_dqn'],
                          help='choose a network architecture (default: dqn_pong_model)')
     rl_args.add_argument('--double', default=False, action='store_true',
                          help='switch for double dqn (default: False)')
@@ -571,6 +571,7 @@ if __name__ == '__main__':
                     soft_dqn,
                     dueling_dqn,
                     distribution_dqn,
+                    lstm,
                     Resnet:
                         resnet18,
                         resnet10,
