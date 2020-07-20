@@ -14,7 +14,7 @@ __all__ = ['make_env', 'RewardScaler', 'ClipRewardEnv', 'LazyFrames', 'FrameStac
 cv2.ocl.setUseOpenCL(False)
 
 
-def make_env(env, stack_frames=True, episodic_life=True, clip_rewards=False, scale=False):
+def make_env(env, stack_frames=True, episodic_life=True, clip_rewards=False, max_and_skip=True, scale=False):
     if episodic_life:
         env = EpisodicLifeEnv(env)
 
@@ -76,7 +76,7 @@ class LazyFrames(object):
 
 
 class FrameStack(gym.Wrapper):
-    def __init__(self, env, k):
+    def __init__(self, env, stack_size):
         """Stack k last frames.
         Returns lazy array, which is much more memory efficient.
         See Also
@@ -84,15 +84,15 @@ class FrameStack(gym.Wrapper):
         baselines.common.atari_wrappers.LazyFrames
         """
         gym.Wrapper.__init__(self, env)
-        self.k = k
-        self.frames = deque([], maxlen=k)
+        self.stack_size = stack_size
+        self.frames = deque([], maxlen=stack_size)
         shp = env.observation_space.shape
-        self.observation_space = gym.spaces.Box(low=0, high=255, shape=(shp[0], shp[1], shp[2] * k),
+        self.observation_space = gym.spaces.Box(low=0, high=255, shape=(shp[0], shp[1], shp[2] * stack_size),
                                                 dtype=env.observation_space.dtype)
 
     def reset(self):
         ob = self.env.reset()
-        for _ in range(self.k):
+        for _ in range(self.stack_size):
             self.frames.append(ob)
         return self._get_ob()
 
@@ -102,7 +102,7 @@ class FrameStack(gym.Wrapper):
         return self._get_ob(), reward, done, info
 
     def _get_ob(self):
-        assert len(self.frames) == self.k
+        assert len(self.frames) == self.stack_size
         return LazyFrames(list(self.frames))
 
 

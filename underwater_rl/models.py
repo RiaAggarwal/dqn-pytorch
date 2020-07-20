@@ -7,7 +7,10 @@ try:
 except ImportError:
     from torch.utils.model_zoo import load_url as load_state_dict_from_url
 
-__all__ = ['DQNbn', 'DQN', 'DuelingDQN', 'softDQN', 'distributionDQN', 'ResNet', 'resnet18', 'resnet10', 'resnet12', 'resnet14', 'PolicyGradient', 'Actor', 'Critic']
+__all__ = ['DQNbn', 'DQN', 'DuelingDQN', 'softDQN', 'distributionDQN', 'ResNet', 'resnet18', 'resnet10', 'resnet12',
+           'resnet14', 'PolicyGradient', 'Actor', 'Critic', 'DRQN']
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
 
 class DQNbn(nn.Module):
@@ -39,7 +42,7 @@ class DQNbn(nn.Module):
 
 
 class DQN(nn.Module):
-    def __init__(self, in_channels=4, n_actions=14):
+    def __init__(self, in_channels=4, n_actions=14, **kwargs):
         """
         Initialize Deep Q Network
 
@@ -64,6 +67,7 @@ class DQN(nn.Module):
         x = F.relu(self.conv3(x))
         x = F.relu(self.fc4(x.reshape(x.size(0), -1)))
         return self.head(x)
+
 
 class PolicyGradient(nn.Module):
     def __init__(self, in_channels=4, n_actions=14):
@@ -91,8 +95,9 @@ class PolicyGradient(nn.Module):
         x = F.relu(self.conv3(x))
         x = F.relu(self.fc4(x.reshape(x.size(0), -1)))
         action_prob = self.head(x)
-        #action_prob = self.softmax(x)
+        # action_prob = self.softmax(x)
         return action_prob
+
 
 class Critic(nn.Module):
     def __init__(self, in_channels=4, n_actions=14):
@@ -118,6 +123,7 @@ class Critic(nn.Module):
         x = F.relu(self.fc4(x.reshape(x.size(0), -1)))
         return self.head(x)
 
+
 class Actor(nn.Module):
     def __init__(self, in_channels=4, n_actions=14):
         """
@@ -141,15 +147,40 @@ class Actor(nn.Module):
         x = F.relu(self.conv3(x))
         x = F.relu(self.fc4(x.reshape(x.size(0), -1)))
         action_prob = self.head(x)
-        #action_prob = self.softmax(x)
+        # action_prob = self.softmax(x)
         return action_prob
 
 
+class DRQN(DQN):
+    """
+    Deep Recurrent Q Network
 
+    Replaces the FC layer with a LSTM layer
+    """
+
+    def __init__(self, in_channels=1, n_actions=14, **kwargs):
+        super(DRQN, self).__init__(in_channels=in_channels, n_actions=n_actions, **kwargs)
+        del self.fc4
+
+        self.hidden_dim = 512
+        self.lstm = nn.LSTM(7 * 7 * 64, self.hidden_dim)
+        self.zero_hidden()
+
+    def zero_hidden(self, batch_size=1):
+        self.hidden = (torch.randn(1, batch_size, self.hidden_dim).to(device),
+                       torch.randn(1, batch_size, self.hidden_dim).to(device))
+
+    def forward(self, x):
+        x = x.float() / 255
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x, self.hidden = self.lstm(x.reshape(x.size(0), 1, -1), self.hidden)
+        return self.head(x.reshape(-1, self.hidden_dim))  # todo: view instead of reshape?
 
 
 class DuelingDQN(nn.Module):
-    def __init__(self, in_channels=4, n_actions=14):
+    def __init__(self, in_channels=4, n_actions=14, **kwargs):
         """
         Initialize Deep Q Network
 
@@ -188,7 +219,7 @@ class DuelingDQN(nn.Module):
 
 
 class softDQN(nn.Module):
-    def __init__(self, in_channels=4, n_actions=14):
+    def __init__(self, in_channels=4, n_actions=14, **kwargs):
         """
         Initialize Deep Q Network
 
@@ -213,8 +244,9 @@ class softDQN(nn.Module):
         return self.head(x)
 
     def getV(self, q_value):
-        v = self.alpha * torch.log(torch.sum(torch.exp(q_value/self.alpha), dim=1, keepdim=True))
+        v = self.alpha * torch.log(torch.sum(torch.exp(q_value / self.alpha), dim=1, keepdim=True))
         return v
+
 
 class distributionDQN(nn.Module):
     def __init__(self, in_channels=4, n_actions=14):
@@ -239,7 +271,7 @@ class distributionDQN(nn.Module):
         # self.bn3 = nn.BatchNorm2d(64)
         self.fc4 = nn.Linear(7 * 7 * 64, 512)
         self.head = nn.Linear(512, self.n_actions * self.atoms)
-        self.register_buffer("supports", torch.arange(self.Vmin, self.Vmax+self.DELTA_Z, self.DELTA_Z))
+        self.register_buffer("supports", torch.arange(self.Vmin, self.Vmax + self.DELTA_Z, self.DELTA_Z))
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
@@ -263,6 +295,7 @@ class distributionDQN(nn.Module):
 
     def apply_softmax(self, t):
         return self.softmax(t.view(-1, self.atoms)).view(t.size())
+
 
 # ResNet Below
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
@@ -369,7 +402,7 @@ class Bottleneck(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block, layers, num_classes=1000, zero_init_residual=False,
+    def __init__(self, block, layers, n_actions=1000, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
                  norm_layer=None):
         super(ResNet, self).__init__()
@@ -388,20 +421,16 @@ class ResNet(nn.Module):
                              "or a 3-element tuple, got {}".format(replace_stride_with_dilation))
         self.groups = groups
         self.base_width = width_per_group
-        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3,
-                               bias=False)
+        self.conv1 = nn.Conv2d(4, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=2,
-                                       dilate=replace_stride_with_dilation[0])
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=2,
-                                       dilate=replace_stride_with_dilation[1])
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=2,
-                                       dilate=replace_stride_with_dilation[2])
+        self.layer2 = self._make_layer(block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0])
+        self.layer3 = self._make_layer(block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1])
+        self.layer4 = self._make_layer(block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        self.fc = nn.Linear(512 * block.expansion, n_actions)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -471,7 +500,7 @@ model_urls = {
 }
 
 
-def resnet18(pretrained=False, progress=True, **kwargs):
+def resnet18(pretrained=False, progress=True, n_actions=3, **kwargs):
     r"""ResNet-18 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
 
@@ -479,35 +508,35 @@ def resnet18(pretrained=False, progress=True, **kwargs):
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    model = ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
+    model = ResNet(BasicBlock, [2, 2, 2, 2], n_actions=3, **kwargs)
     if pretrained:
         state_dict = load_state_dict_from_url(model_urls['resnet18'], progress=progress)
         model.load_state_dict(state_dict)
     return model
 
 
-def resnet10(pretrained=False, progress=True, **kwargs):
+def resnet10(pretrained=False, progress=True, n_actions=3, **kwargs):
     r"""ResNet-10 model from
     `"Deep Residual Learning for Image Recognition"
     <https://github.com/osmr/imgclsmob/blob/master/gluon/gluoncv2/models/resnet.py>`_
     """
-    model = ResNet(BasicBlock, [1, 1, 1, 1], **kwargs)
+    model = ResNet(BasicBlock, [1, 1, 1, 1], n_actions=n_actions, **kwargs)
     return model
 
 
-def resnet12(pretrained=False, progress=True, **kwargs):
+def resnet12(pretrained=False, progress=True, n_actions=3, **kwargs):
     r"""ResNet-12 model from
     `"Deep Residual Learning for Image Recognition"
     <https://github.com/osmr/imgclsmob/blob/master/gluon/gluoncv2/models/resnet.py>`_
     """
-    model = ResNet(BasicBlock, [2, 1, 1, 1], **kwargs)
+    model = ResNet(BasicBlock, [2, 1, 1, 1], n_actions=n_actions, **kwargs)
     return model
 
 
-def resnet14(pretrained=False, progress=True, **kwargs):
+def resnet14(pretrained=False, progress=True, n_actions=3, **kwargs):
     r"""ResNet-14 model from
     `"Deep Residual Learning for Image Recognition"
     <https://github.com/osmr/imgclsmob/blob/master/gluon/gluoncv2/models/resnet.py>`_
     """
-    model = ResNet(Bottleneck, [1, 1, 1, 1], **kwargs)
+    model = ResNet(Bottleneck, [1, 1, 1, 1], n_actions=n_actions, **kwargs)
     return model

@@ -29,6 +29,7 @@ def convert_images_to_video(image_dir: str, save_dir: str):
         out.write(img_array[i])
     out.release()
 
+
 def distr_projection(next_distr, rewards, dones, Vmin, Vmax, n_atoms, gamma):
     """
     Perform distribution projection aka Catergorical Algorithm from the
