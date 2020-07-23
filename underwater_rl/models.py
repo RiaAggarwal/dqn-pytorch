@@ -7,7 +7,7 @@ try:
 except ImportError:
     from torch.utils.model_zoo import load_url as load_state_dict_from_url
 
-__all__ = ['DQNbn', 'DQN', 'DuelingDQN', 'softDQN', 'DistributionalDQN', 'ResNet', 'resnet18', 'resnet10', 'resnet12',
+__all__ = ['DQNbn', 'DQN', 'DuelingDQN', 'softDQN', 'distributionDQN', 'ResNet', 'resnet18', 'resnet10', 'resnet12',
            'resnet14', 'PolicyGradient', 'Actor', 'Critic', 'DRQN']
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
@@ -248,8 +248,8 @@ class softDQN(nn.Module):
         return v
 
 
-class DistributionalDQN(nn.Module):
-    def __init__(self, in_channels=4, n_actions=14, atoms=51, Vmin=-10, Vmax=10):
+class distributionDQN(nn.Module):
+    def __init__(self, in_channels=4, n_actions=14):
         """
         Deep Q Network with KL Priority
 
@@ -257,11 +257,11 @@ class DistributionalDQN(nn.Module):
             in_channels (int): number of input channels
             n_actions (int): number of outputs
         """
-        super(DistributionalDQN, self).__init__()
+        super(distributionDQN, self).__init__()
         self.n_actions = n_actions
-        self.atoms = atoms
-        self.Vmin = Vmin
-        self.Vmax = Vmax
+        self.atoms = 51
+        self.Vmin = -10
+        self.Vmax = 10
         self.DELTA_Z = (self.Vmax - self.Vmin) / (self.atoms - 1)
         self.conv1 = nn.Conv2d(in_channels, 32, kernel_size=8, stride=4)
         # self.bn1 = nn.BatchNorm2d(32)

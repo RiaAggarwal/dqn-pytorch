@@ -27,7 +27,7 @@ try:
     from .memory import *
     from .models import *
     from .wrappers import *
-    from .utils import convert_images_to_video, distr_projection
+    from utils import convert_images_to_video, distr_projection
 except ImportError:
     from memory import *
     from models import *
@@ -89,126 +89,91 @@ def toc(tstart, nm=""):
 
 
 def optimize_model():
-    batch, actions, rewards, idxs, weights = sample_memory()
-    non_final_mask, non_final_next_states = mask_non_final(batch)
-    action_batch, reward_batch, state_batch = separate_batches(actions, batch, rewards)
-
-    state_action_values = forward_policy(action_batch, state_batch)
-    next_state_values = forward_target(non_final_mask, non_final_next_states)
-    expected_state_action_values = (next_state_values * GAMMA) + reward_batch.float()
-
-    loss = get_loss(expected_state_action_values, idxs, state_action_values, weights)
-    step_optimizer(loss)
-
-
-def optimize_lstm():
-    batch, actions, rewards, idxs, weights = sample_memory()
-    non_final_mask, non_final_next_states = mask_non_final(batch)
-    action_batch, reward_batch, state_batch = separate_batches(actions, batch, rewards)
-
-    policy_net.zero_hidden()
-    target_net.zero_hidden()
-
-    state_action_values = forward_policy(action_batch, state_batch)
-    next_state_values = forward_target(non_final_mask, non_final_next_states)
-    expected_state_action_values = (next_state_values * GAMMA) + reward_batch.float()
-
-    loss = get_loss(expected_state_action_values, idxs, state_action_values, weights)
-    step_optimizer(loss)
-
-
-def optimize_distributional():
-    batch, actions, rewards, idxs, weights = sample_memory()
-    action_batch, reward_batch, state_batch = separate_batches(actions, batch, rewards)
-
-    next_states_v = torch.cat(
-        [s if s is not None else batch.state[i] for i, s in enumerate(batch.next_state)]).to(device)
-    dones = np.stack(tuple(map(lambda s: s is None, batch.next_state)))
-    # next state distribution
-    next_distr_v, next_qvals_v = target_net.both(next_states_v)
-    next_actions = next_qvals_v.max(1)[1].data.cpu().numpy()
-    next_distr = target_net.apply_softmax(next_distr_v).data.cpu().numpy()
-    next_best_distr = next_distr[range(BATCH_SIZE), next_actions]
-    dones = dones.astype(np.bool)
-    # project our distribution using Bellman update
-    proj_distr = distr_projection(next_best_distr, reward_batch.cpu().numpy(), dones,
-                                  policy_net.Vmin, policy_net.Vmax, policy_net.atoms, GAMMA)
-    # calculate net output
-    distr_v = policy_net(state_batch)
-    state_action_values = distr_v[range(BATCH_SIZE), action_batch.view(-1)]
-    state_log_sm_v = F.log_softmax(state_action_values, dim=1)
-    proj_distr_v = torch.tensor(proj_distr).to(device)
-    entropy = (-state_log_sm_v * proj_distr_v).sum(dim=1)
-
-    if PRIORITY:  # KL divergence based priority
-        memory.update(idxs, entropy.detach().cpu().numpy().reshape(-1, 1))
-        loss = (weights * entropy).mean()
-    else:
-        loss = entropy.mean()
-
-    step_optimizer(loss)
-
-
-def forward_policy(action_batch, state_batch):
-    state_action_values = policy_net(state_batch).gather(1, action_batch)
-    return state_action_values
-
-
-# noinspection PyTypeChecker
-def forward_target(non_final_mask, non_final_next_states):
-    next_state_values = torch.zeros(BATCH_SIZE, device=device)
-    if DOUBLE:
-        argmax_a_q_sp = policy_net(non_final_next_states).max(1)[1]
-        q_sp = target_net(non_final_next_states).detach()
-        next_state_values[non_final_mask] = q_sp[
-            torch.arange(torch.sum(non_final_mask), device=device), argmax_a_q_sp]
-    elif architecture == 'soft_dqn':
-        raise NotImplementedError("soft DQN is not yet implemented")
-        # next_state_action_values[non_final_mask] = target_net(non_final_next_states).detach()
-        # next_state_values[non_final_mask] = target_net.getV(next_state_action_values[non_final_mask]).detach()
-    else:
-        next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
-    return next_state_values
-
-
-def step_optimizer(loss):
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-
-
-def separate_batches(actions, batch, rewards):
-    state_batch = torch.cat(batch.state).to(device)
-    action_batch = torch.cat(actions)
-    reward_batch = torch.cat(rewards)
-    return action_batch, reward_batch, state_batch
-
-
-def mask_non_final(batch):
-    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)),
-                                  device=device, dtype=torch.uint8)
-    non_final_next_states = torch.cat([s for s in batch.next_state if s is not None]).to(device)
-    return non_final_mask, non_final_next_states
-
-
-def sample_memory():
-    idxs, weights = None, None
+    if len(memory) < 1 and isinstance(memory, EpisodicMemory):
+        return
+    elif len(memory) < BATCH_SIZE:
+        return
 
     if PRIORITY:
         idxs, weights, transitions = memory.sample(BATCH_SIZE)
         weights = torch.from_numpy(weights).float().to(device)
     else:
         transitions = memory.sample(BATCH_SIZE)
-
-    batch, actions, rewards = process_transitions(transitions)
-    return batch, actions, rewards, idxs, weights
-
-
-def process_transitions(transitions):
+    """
+    zip(*transitions) unzips the transitions into
+    Transition(*) creates new named tuple
+    batch.state - tuple of all the states (each state is a tensor)
+    batch.next_state - tuple of all the next states (each state is a tensor)
+    batch.reward - tuple of all the rewards (each reward is a float)
+    batch.action - tuple of all the actions (each action is an int)
+    """
     batch = Transition(*zip(*transitions))
+
     actions = tuple((map(lambda a: torch.tensor([[a]], device=device), batch.action)))
     rewards = tuple((map(lambda r: torch.tensor([r], device=device), batch.reward)))
-    return batch, actions, rewards
+
+    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)),
+                                  device=device, dtype=torch.uint8)
+    non_final_next_states = torch.cat([s for s in batch.next_state if s is not None]).to(device)
+
+    state_batch = torch.cat(batch.state).to(device)
+    action_batch = torch.cat(actions)
+    reward_batch = torch.cat(rewards)
+
+    if architecture == 'distribution_dqn':
+        next_states_v = torch.cat(
+            [s if s is not None else batch.state[i] for i, s in enumerate(batch.next_state)]).to(device)
+        dones = np.stack(tuple(map(lambda s: s is None, batch.next_state)))
+        # next state distribution
+        next_distr_v, next_qvals_v = target_net.both(next_states_v)
+        next_actions = next_qvals_v.max(1)[1].data.cpu().numpy()
+        next_distr = target_net.apply_softmax(next_distr_v).data.cpu().numpy()
+        next_best_distr = next_distr[range(BATCH_SIZE), next_actions]
+        dones = dones.astype(np.bool)
+        # project our distribution using Bellman update
+        proj_distr = distr_projection(next_best_distr, reward_batch.cpu().numpy(), dones, Vmin, Vmax, atoms, GAMMA)
+        # calculate net output
+        distr_v = policy_net(state_batch)
+        state_action_values = distr_v[range(BATCH_SIZE), action_batch.view(-1)]
+        state_log_sm_v = F.log_softmax(state_action_values, dim=1)
+        proj_distr_v = torch.tensor(proj_distr).to(device)
+        entropy = (-state_log_sm_v * proj_distr_v).sum(dim=1)
+        if PRIORITY:  # KL divergence based priority
+            memory.update(idxs, entropy.detach().cpu().numpy().reshape(-1, 1))
+            loss = (weights * entropy).mean()
+        else:
+            loss = entropy.mean()
+    else:
+        if architecture == 'lstm':
+            policy_net.zero_hidden()
+            target_net.zero_hidden()
+
+        state_action_values = policy_net(state_batch).gather(1, action_batch)
+        next_state_values = torch.zeros(BATCH_SIZE, device=device)
+        if DOUBLE:
+            argmax_a_q_sp = policy_net(non_final_next_states).max(1)[1]
+            q_sp = target_net(non_final_next_states).detach()
+            next_state_values[non_final_mask] = q_sp[
+                torch.arange(torch.sum(non_final_mask), device=device), argmax_a_q_sp]
+        elif architecture == 'soft_dqn':
+            raise NotImplementedError("soft DQN is not yet implemented")
+            # next_state_action_values[non_final_mask] = target_net(non_final_next_states).detach()
+            # next_state_values[non_final_mask] = target_net.getV(next_state_action_values[non_final_mask]).detach()
+        else:
+            next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
+        expected_state_action_values = (next_state_values * GAMMA) + reward_batch.float()
+
+        if PRIORITY:  # TD error based priority
+            td_errors = state_action_values - expected_state_action_values.unsqueeze(1)
+            td_errors = td_errors.detach().cpu().numpy()
+            memory.update(idxs, td_errors)
+            loss = F.smooth_l1_loss(weights * state_action_values, weights * expected_state_action_values.unsqueeze(1))
+        else:
+            loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
+
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
 
 
 def get_state(obs):
@@ -216,17 +181,6 @@ def get_state(obs):
     state = state.transpose((2, 0, 1))
     state = torch.from_numpy(state)
     return state.unsqueeze(0)
-
-
-def get_loss(expected_state_action_values, idxs, state_action_values, weights):
-    if PRIORITY:  # TD error based priority
-        td_errors = state_action_values - expected_state_action_values.unsqueeze(1)
-        td_errors = td_errors.detach().cpu().numpy()
-        memory.update(idxs, td_errors)
-        loss = F.smooth_l1_loss(weights * state_action_values, weights * expected_state_action_values.unsqueeze(1))
-    else:
-        loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
-    return loss
 
 
 def train(env, n_episodes, history, render_mode=False):
@@ -252,16 +206,25 @@ def train(env, n_episodes, history, render_mode=False):
                 display_state(next_state)
 
             reward = torch.tensor([reward], device=device)
-            memory_store(episode, state, action, reward, next_state)
+            if architecture == 'lstm':
+                memory.store(episode, state, action.to('cpu'), next_state, reward.to('cpu'))
+            else:
+                memory.store(state, action.to('cpu'), next_state, reward.to('cpu'))
             state = next_state
 
-            dispatch_optimize(episode)
+            if architecture == 'lstm':
+                if episode >= INITIAL_MEMORY:
+                    optimize_model()
+                    update_target_net()
+            else:
+                if steps_done > INITIAL_MEMORY:
+                    optimize_model()
+                    update_target_net()
 
             if done:
                 break
 
         epoch += 1
-        # noinspection PyUnboundLocalVariable
         history.append((total_reward, t))
         if episode % LOG_INTERVAL == 0:
             log_checkpoint(epoch, history, t)
@@ -275,27 +238,6 @@ def train(env, n_episodes, history, render_mode=False):
         shutil.rmtree(save_dir)
 
     return history
-
-
-def dispatch_optimize(episode):
-    if architecture == 'lstm':
-        if episode >= INITIAL_MEMORY and len(memory) >= 1:
-            optimize_lstm()
-    else:
-        if steps_done > INITIAL_MEMORY and len(memory) >= BATCH_SIZE:
-            if architecture == 'distribution_dqn':
-                optimize_distributional()
-            else:
-                optimize_model()
-
-    update_target_net()
-
-
-def memory_store(episode, state, action, reward, next_state):
-    if isinstance(memory, EpisodicMemory):
-        memory.store(episode, state, action.to('cpu'), next_state, reward.to('cpu'))
-    else:
-        memory.store(state, action.to('cpu'), next_state, reward.to('cpu'))
 
 
 def update_target_net():
@@ -332,7 +274,7 @@ def test(env, n_episodes, policy, render_mode=True):
         obs = env.reset()
         state = get_state(obs)
         total_reward = 0.0
-        for _ in count():
+        for t in count():
             action = policy(state.to(device)).max(1)[1].view(1, 1)
             render_state(env, render_mode, save_dir)
             obs, reward, done, info = env.step(action)
@@ -430,114 +372,6 @@ def initialize_replay_memory():
             return EpisodicMemory(MEMORY_SIZE)
         else:
             return ReplayMemory(MEMORY_SIZE)
-
-
-def dispatch_make_env():
-    env = gym.make(
-        "gym_dynamic_pong:dynamic-pong-v1",
-        max_score=20,
-        width=args.width,
-        height=args.height,
-        default_speed=args.ball,
-        snell_speed=args.snell,
-        snell_width=args.snell_width,
-        snell_change=args.snell_change,
-        snell_visible=args.snell_visible,
-        refract=not args.no_refraction,
-        uniform_speed=args.uniform_speed,
-        our_paddle_speed=args.paddle_speed,
-        their_paddle_speed=args.paddle_speed,
-        our_paddle_height=args.paddle_length,
-        their_paddle_height=args.paddle_length,
-        our_paddle_angle=math.radians(args.paddle_angle),
-        their_paddle_angle=math.radians(args.paddle_angle),
-        their_update_probability=args.update_prob,
-        ball_size=args.ball_size,
-        state_type=args.state,
-    )
-
-    # TODO: consider removing some of the wrappers - may improve performance
-    if architecture == 'lstm':
-        env = make_env(env, stack_frames=False, episodic_life=True, clip_rewards=True, max_and_skip=False)
-    else:
-        env = make_env(env, stack_frames=True, episodic_life=True, clip_rewards=True, max_and_skip=True)
-    return env
-
-
-def get_models():
-    if architecture == 'dqn_pong_model':
-        policy_net = DQN(n_actions=env.action_space.n).to(device)
-        target_net = DQN(n_actions=env.action_space.n).to(device)
-        target_net.load_state_dict(policy_net.state_dict())
-    elif architecture == 'soft_dqn':
-        policy_net = softDQN(n_actions=env.action_space.n).to(device)
-        target_net = softDQN(n_actions=env.action_space.n).to(device)
-        target_net.load_state_dict(policy_net.state_dict())
-    elif architecture == 'dueling_dqn':
-        policy_net = DuelingDQN(n_actions=env.action_space.n).to(device)
-        target_net = DuelingDQN(n_actions=env.action_space.n).to(device)
-        target_net.load_state_dict(policy_net.state_dict())
-    elif architecture == 'lstm':
-        policy_net = DRQN(n_actions=env.action_space.n).to(device)
-        target_net = DRQN(n_actions=env.action_space.n).to(device)
-        target_net.load_state_dict(policy_net.state_dict())
-    elif architecture == 'distribution_dqn':
-        policy_net = DistributionalDQN(n_actions=env.action_space.n).to(device)
-        target_net = DistributionalDQN(n_actions=env.action_space.n).to(device)
-        target_net.load_state_dict(policy_net.state_dict())
-    else:
-        if architecture == 'resnet18':
-            policy_net = resnet18(pretrained=pretrain)
-            target_net = resnet18(pretrained=pretrain)
-        elif architecture == 'resnet10':
-            policy_net = resnet10()
-            target_net = resnet10()
-        elif architecture == 'resnet12':
-            policy_net = resnet12()
-            target_net = resnet12()
-        elif architecture == 'resnet14':
-            policy_net = resnet14()
-            target_net = resnet14()
-        else:
-            raise ValueError('''Need an available architecture:
-                    dqn_pong_model,
-                    soft_dqn,
-                    dueling_dqn,
-                    distribution_dqn,
-                    lstm,
-                    Resnet:
-                        resnet18,
-                        resnet10,
-                        resnet12,
-                        resnet14''')
-
-        num_ftrs = policy_net.fc.in_features
-        policy_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        policy_net.fc = nn.Linear(num_ftrs, env.action_space.n)
-        policy_net = policy_net.to(device)
-        num_ftrs = target_net.fc.in_features
-        target_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        target_net.fc = nn.Linear(num_ftrs, env.action_space.n)
-        target_net = target_net.to(device)
-        target_net.load_state_dict(policy_net.state_dict())
-
-    return policy_net, target_net
-
-
-def load_checkpoint():
-    logger.info("Loading the trained model")
-    checkpoint = torch.load(args.checkpoint, map_location=device)
-
-    policy_net.load_state_dict(checkpoint['Net'])
-    optimizer.load_state_dict(checkpoint['Optimizer'])
-    target_net.load_state_dict(policy_net.state_dict())
-
-    steps_done = checkpoint['Steps_Done']
-    epoch = checkpoint['Epoch']
-
-    history = pickle.load(open(args.history, 'rb'))
-
-    return steps_done, epoch, history
 
 
 if __name__ == '__main__':
@@ -652,24 +486,122 @@ if __name__ == '__main__':
     CHECKPOINT_INTERVAL = 100
 
     resume = args.resume
-    architecture = args.network
-    pretrain = args.pretrain
 
     logger = get_logger(args.store_dir)
-
     logger.info(get_args_status_string(parser, args))
     logger.info(f'Device: {device}')
 
-    env = dispatch_make_env()
-    policy_net, target_net = get_models()
+    # create environment
+    # env = gym.make("PongNoFrameskip-v4")
+    env = gym.make(
+        "gym_dynamic_pong:dynamic-pong-v1",
+        max_score=20,
+        width=args.width,
+        height=args.height,
+        default_speed=args.ball,
+        snell_speed=args.snell,
+        snell_width=args.snell_width,
+        snell_change=args.snell_change,
+        snell_visible=args.snell_visible,
+        refract=not args.no_refraction,
+        uniform_speed=args.uniform_speed,
+        our_paddle_speed=args.paddle_speed,
+        their_paddle_speed=args.paddle_speed,
+        our_paddle_height=args.paddle_length,
+        their_paddle_height=args.paddle_length,
+        our_paddle_angle=math.radians(args.paddle_angle),
+        their_paddle_angle=math.radians(args.paddle_angle),
+        their_update_probability=args.update_prob,
+        ball_size=args.ball_size,
+        state_type=args.state,
+    )
 
+    # create networks
+    architecture = args.network
+
+    # TODO: consider removing some of the wrappers - may improve performance
+    if architecture == 'lstm':
+        env = make_env(env, stack_frames=False, episodic_life=True, clip_rewards=True, max_and_skip=False)
+    else:
+        env = make_env(env, stack_frames=True, episodic_life=True, clip_rewards=True, max_and_skip=True)
+
+    pretrain = args.pretrain
+    if architecture == 'dqn_pong_model':
+        policy_net = DQN(n_actions=env.action_space.n).to(device)
+        target_net = DQN(n_actions=env.action_space.n).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+    elif architecture == 'soft_dqn':
+        policy_net = softDQN(n_actions=env.action_space.n).to(device)
+        target_net = softDQN(n_actions=env.action_space.n).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+    elif architecture == 'dueling_dqn':
+        policy_net = DuelingDQN(n_actions=env.action_space.n).to(device)
+        target_net = DuelingDQN(n_actions=env.action_space.n).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+    elif architecture == 'lstm':
+        policy_net = DRQN(n_actions=env.action_space.n).to(device)
+        target_net = DRQN(n_actions=env.action_space.n).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+    elif architecture == 'distribution_dqn':
+        policy_net = distributionDQN(n_actions=env.action_space.n).to(device)
+        target_net = distributionDQN(n_actions=env.action_space.n).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+        atoms = 51
+        Vmin = -10
+        Vmax = 10
+        multi_step = 1
+        delta_z = (Vmax - Vmin) / (atoms - 1)
+        support = torch.linspace(Vmin, Vmax, atoms).to(device=device)
+    else:
+        if architecture == 'resnet18':
+            policy_net = resnet18(pretrained=pretrain)
+            target_net = resnet18(pretrained=pretrain)
+        elif architecture == 'resnet10':
+            policy_net = resnet10()
+            target_net = resnet10()
+        elif architecture == 'resnet12':
+            policy_net = resnet12()
+            target_net = resnet12()
+        elif architecture == 'resnet14':
+            policy_net = resnet14()
+            target_net = resnet14()
+        else:
+            raise ValueError('''Need an available architecture:
+                    dqn_pong_model,
+                    soft_dqn,
+                    dueling_dqn,
+                    distribution_dqn,
+                    lstm,
+                    Resnet:
+                        resnet18,
+                        resnet10,
+                        resnet12,
+                        resnet14''')
+
+        num_ftrs = policy_net.fc.in_features
+        policy_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        policy_net.fc = nn.Linear(num_ftrs, env.action_space.n)
+        policy_net = policy_net.to(device)
+        num_ftrs = target_net.fc.in_features
+        target_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        target_net.fc = nn.Linear(num_ftrs, env.action_space.n)
+        target_net = target_net.to(device)
+        target_net.load_state_dict(policy_net.state_dict())
 
     # setup optimizer
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)
     steps_done = 0
     epoch = 0
+
     if resume:
-        steps_done, epoch, history = load_checkpoint()
+        checkpoint = torch.load(args.checkpoint, map_location=device)
+        policy_net.load_state_dict(checkpoint['Net'])
+        optimizer.load_state_dict(checkpoint['Optimizer'])
+        target_net.load_state_dict(policy_net.state_dict())
+        steps_done = checkpoint['Steps_Done']
+        epoch = checkpoint['Epoch']
+        logger.info("Loading the trained model")
+        history = pickle.load(open(args.history, 'rb'))
     else:
         history = []
 
