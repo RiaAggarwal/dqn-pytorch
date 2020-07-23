@@ -89,126 +89,79 @@ def toc(tstart, nm=""):
 
 
 def optimize_model():
-    batch, actions, rewards, idxs, weights = sample_memory()
-    non_final_mask, non_final_next_states = mask_non_final(batch)
-    action_batch, reward_batch, state_batch = separate_batches(actions, batch, rewards)
-
-    state_action_values = forward_policy(action_batch, state_batch)
-    next_state_values = forward_target(non_final_mask, non_final_next_states)
-    expected_state_action_values = (next_state_values * GAMMA) + reward_batch.float()
-
-    loss = get_loss(expected_state_action_values, idxs, state_action_values, weights)
-    step_optimizer(loss)
-
-
-def optimize_lstm():
-    batch, actions, rewards, idxs, weights = sample_memory()
-    non_final_mask, non_final_next_states = mask_non_final(batch)
-    action_batch, reward_batch, state_batch = separate_batches(actions, batch, rewards)
-
-    policy_net.zero_hidden()
-    target_net.zero_hidden()
-
-    state_action_values = forward_policy(action_batch, state_batch)
-    next_state_values = forward_target(non_final_mask, non_final_next_states)
-    expected_state_action_values = (next_state_values * GAMMA) + reward_batch.float()
-
-    loss = get_loss(expected_state_action_values, idxs, state_action_values, weights)
-    step_optimizer(loss)
-
-
-def optimize_distributional():
-    batch, actions, rewards, idxs, weights = sample_memory()
-    action_batch, reward_batch, state_batch = separate_batches(actions, batch, rewards)
-
-    next_states_v = torch.cat(
-        [s if s is not None else batch.state[i] for i, s in enumerate(batch.next_state)]).to(device)
-    dones = np.stack(tuple(map(lambda s: s is None, batch.next_state)))
-    # next state distribution
-    next_distr_v, next_qvals_v = target_net.both(next_states_v)
-    next_actions = next_qvals_v.max(1)[1].data.cpu().numpy()
-    next_distr = target_net.apply_softmax(next_distr_v).data.cpu().numpy()
-    next_best_distr = next_distr[range(BATCH_SIZE), next_actions]
-    dones = dones.astype(np.bool)
-    # project our distribution using Bellman update
-    proj_distr = distr_projection(next_best_distr, reward_batch.cpu().numpy(), dones,
-                                  policy_net.Vmin, policy_net.Vmax, policy_net.atoms, GAMMA)
-    # calculate net output
-    distr_v = policy_net(state_batch)
-    state_action_values = distr_v[range(BATCH_SIZE), action_batch.view(-1)]
-    state_log_sm_v = F.log_softmax(state_action_values, dim=1)
-    proj_distr_v = torch.tensor(proj_distr).to(device)
-    entropy = (-state_log_sm_v * proj_distr_v).sum(dim=1)
-
-    if PRIORITY:  # KL divergence based priority
-        memory.update(idxs, entropy.detach().cpu().numpy().reshape(-1, 1))
-        loss = (weights * entropy).mean()
-    else:
-        loss = entropy.mean()
-
-    step_optimizer(loss)
-
-
-def forward_policy(action_batch, state_batch):
-    state_action_values = policy_net(state_batch).gather(1, action_batch)
-    return state_action_values
-
-
-# noinspection PyTypeChecker
-def forward_target(non_final_mask, non_final_next_states):
-    next_state_values = torch.zeros(BATCH_SIZE, device=device)
-    if DOUBLE:
-        argmax_a_q_sp = policy_net(non_final_next_states).max(1)[1]
-        q_sp = target_net(non_final_next_states).detach()
-        next_state_values[non_final_mask] = q_sp[
-            torch.arange(torch.sum(non_final_mask), device=device), argmax_a_q_sp]
-    elif architecture == 'soft_dqn':
-        raise NotImplementedError("soft DQN is not yet implemented")
-        # next_state_action_values[non_final_mask] = target_net(non_final_next_states).detach()
-        # next_state_values[non_final_mask] = target_net.getV(next_state_action_values[non_final_mask]).detach()
-    else:
-        next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
-    return next_state_values
-
-
-def step_optimizer(loss):
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-
-
-def separate_batches(actions, batch, rewards):
-    state_batch = torch.cat(batch.state).to(device)
-    action_batch = torch.cat(actions)
-    reward_batch = torch.cat(rewards)
-    return action_batch, reward_batch, state_batch
-
-
-def mask_non_final(batch):
-    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)),
-                                  device=device, dtype=torch.uint8)
-    non_final_next_states = torch.cat([s for s in batch.next_state if s is not None]).to(device)
-    return non_final_mask, non_final_next_states
-
-
-def sample_memory():
-    idxs, weights = None, None
-
     if PRIORITY:
         idxs, weights, transitions = memory.sample(BATCH_SIZE)
         weights = torch.from_numpy(weights).float().to(device)
     else:
         transitions = memory.sample(BATCH_SIZE)
-
-    batch, actions, rewards = process_transitions(transitions)
-    return batch, actions, rewards, idxs, weights
-
-
-def process_transitions(transitions):
     batch = Transition(*zip(*transitions))
+
     actions = tuple((map(lambda a: torch.tensor([[a]], device=device), batch.action)))
     rewards = tuple((map(lambda r: torch.tensor([r], device=device), batch.reward)))
-    return batch, actions, rewards
+
+    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)),
+                                  device=device, dtype=torch.uint8)
+    non_final_next_states = torch.cat([s for s in batch.next_state if s is not None]).to(device)
+
+    state_batch = torch.cat(batch.state).to(device)
+    action_batch = torch.cat(actions)
+    reward_batch = torch.cat(rewards)
+
+    if architecture == 'distribution_dqn':
+        next_states_v = torch.cat(
+            [s if s is not None else batch.state[i] for i, s in enumerate(batch.next_state)]).to(device)
+        dones = np.stack(tuple(map(lambda s: s is None, batch.next_state)))
+        # next state distribution
+        next_distr_v, next_qvals_v = target_net.both(next_states_v)
+        next_actions = next_qvals_v.max(1)[1].data.cpu().numpy()
+        next_distr = target_net.apply_softmax(next_distr_v).data.cpu().numpy()
+        next_best_distr = next_distr[range(BATCH_SIZE), next_actions]
+        dones = dones.astype(np.bool)
+        # project our distribution using Bellman update
+        proj_distr = distr_projection(next_best_distr, reward_batch.cpu().numpy(), dones,
+                                      policy_net.Vmin, policy_net.Vmax, policy_net.atoms, GAMMA)
+        # calculate net output
+        distr_v = policy_net(state_batch)
+        state_action_values = distr_v[range(BATCH_SIZE), action_batch.view(-1)]
+        state_log_sm_v = F.log_softmax(state_action_values, dim=1)
+        proj_distr_v = torch.tensor(proj_distr).to(device)
+        entropy = (-state_log_sm_v * proj_distr_v).sum(dim=1)
+        if PRIORITY:  # KL divergence based priority
+            memory.update(idxs, entropy.detach().cpu().numpy().reshape(-1, 1))
+            loss = (weights * entropy).mean()
+        else:
+            loss = entropy.mean()
+    else:
+        if architecture == 'lstm':
+            policy_net.zero_hidden()
+            target_net.zero_hidden()
+
+        state_action_values = policy_net(state_batch).gather(1, action_batch)
+        next_state_values = torch.zeros(BATCH_SIZE, device=device)
+        if DOUBLE:
+            argmax_a_q_sp = policy_net(non_final_next_states).max(1)[1]
+            q_sp = target_net(non_final_next_states).detach()
+            next_state_values[non_final_mask] = q_sp[
+                torch.arange(torch.sum(non_final_mask), device=device), argmax_a_q_sp]
+        elif architecture == 'soft_dqn':
+            raise NotImplementedError("soft DQN is not yet implemented")
+            # next_state_action_values[non_final_mask] = target_net(non_final_next_states).detach()
+            # next_state_values[non_final_mask] = target_net.getV(next_state_action_values[non_final_mask]).detach()
+        else:
+            next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
+        expected_state_action_values = (next_state_values * GAMMA) + reward_batch.float()
+
+        if PRIORITY:  # TD error based priority
+            td_errors = state_action_values - expected_state_action_values.unsqueeze(1)
+            td_errors = td_errors.detach().cpu().numpy()
+            memory.update(idxs, td_errors)
+            loss = F.smooth_l1_loss(weights * state_action_values, weights * expected_state_action_values.unsqueeze(1))
+        else:
+            loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
+
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
 
 
 def get_state(obs):
@@ -216,17 +169,6 @@ def get_state(obs):
     state = state.transpose((2, 0, 1))
     state = torch.from_numpy(state)
     return state.unsqueeze(0)
-
-
-def get_loss(expected_state_action_values, idxs, state_action_values, weights):
-    if PRIORITY:  # TD error based priority
-        td_errors = state_action_values - expected_state_action_values.unsqueeze(1)
-        td_errors = td_errors.detach().cpu().numpy()
-        memory.update(idxs, td_errors)
-        loss = F.smooth_l1_loss(weights * state_action_values, weights * expected_state_action_values.unsqueeze(1))
-    else:
-        loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
-    return loss
 
 
 def train(env, n_episodes, history, render_mode=False):
@@ -261,7 +203,6 @@ def train(env, n_episodes, history, render_mode=False):
                 break
 
         epoch += 1
-        # noinspection PyUnboundLocalVariable
         history.append((total_reward, t))
         if episode % LOG_INTERVAL == 0:
             log_checkpoint(epoch, history, t)
@@ -280,15 +221,12 @@ def train(env, n_episodes, history, render_mode=False):
 def dispatch_optimize(episode):
     if architecture == 'lstm':
         if episode >= INITIAL_MEMORY and len(memory) >= 1:
-            optimize_lstm()
+            optimize_model()
+            update_target_net()
     else:
         if steps_done > INITIAL_MEMORY and len(memory) >= BATCH_SIZE:
-            if architecture == 'distribution_dqn':
-                optimize_distributional()
-            else:
-                optimize_model()
-
-    update_target_net()
+            optimize_model()
+            update_target_net()
 
 
 def memory_store(episode, state, action, reward, next_state):
@@ -332,7 +270,7 @@ def test(env, n_episodes, policy, render_mode=True):
         obs = env.reset()
         state = get_state(obs)
         total_reward = 0.0
-        for _ in count():
+        for t in count():
             action = policy(state.to(device)).max(1)[1].view(1, 1)
             render_state(env, render_mode, save_dir)
             obs, reward, done, info = env.step(action)
@@ -524,22 +462,6 @@ def get_models():
     return policy_net, target_net
 
 
-def load_checkpoint():
-    logger.info("Loading the trained model")
-    checkpoint = torch.load(args.checkpoint, map_location=device)
-
-    policy_net.load_state_dict(checkpoint['Net'])
-    optimizer.load_state_dict(checkpoint['Optimizer'])
-    target_net.load_state_dict(policy_net.state_dict())
-
-    steps_done = checkpoint['Steps_Done']
-    epoch = checkpoint['Epoch']
-
-    history = pickle.load(open(args.history, 'rb'))
-
-    return steps_done, epoch, history
-
-
 if __name__ == '__main__':
     # arguments
     parser = argparse.ArgumentParser(description='Dynamic Pong RL')
@@ -663,13 +585,20 @@ if __name__ == '__main__':
     env = dispatch_make_env()
     policy_net, target_net = get_models()
 
-
     # setup optimizer
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)
     steps_done = 0
     epoch = 0
+
     if resume:
-        steps_done, epoch, history = load_checkpoint()
+        checkpoint = torch.load(args.checkpoint, map_location=device)
+        policy_net.load_state_dict(checkpoint['Net'])
+        optimizer.load_state_dict(checkpoint['Optimizer'])
+        target_net.load_state_dict(policy_net.state_dict())
+        steps_done = checkpoint['Steps_Done']
+        epoch = checkpoint['Epoch']
+        logger.info("Loading the trained model")
+        history = pickle.load(open(args.history, 'rb'))
     else:
         history = []
 
