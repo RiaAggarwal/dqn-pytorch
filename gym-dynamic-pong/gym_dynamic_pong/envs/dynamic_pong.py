@@ -34,6 +34,7 @@ class DynamicPongEnv(gym.Env):
                  our_paddle_angle=math.pi / 4,
                  their_paddle_angle=math.pi / 4,
                  ball_size=2,
+                 ball_has_volume=False,
                  state_type='color', ):
 
         for v in width, height:
@@ -59,6 +60,7 @@ class DynamicPongEnv(gym.Env):
         self.their_paddle_angle = their_paddle_angle
         self.their_update_probability = their_update_probability
         self.ball_size = ball_size
+        self.ball_has_volume = ball_has_volume
 
         # initialization
         self._initialize_env()
@@ -169,7 +171,7 @@ class DynamicPongEnv(gym.Env):
         self.env = Canvas(
             self._init_paddle('left', self.their_paddle_height, self.their_paddle_speed, self.their_paddle_angle),
             self._init_paddle('right', self.our_paddle_height, self.our_paddle_speed, self.our_paddle_angle),
-            self._init_ball(self.ball_size),
+            self._init_ball(self.ball_size, self.ball_has_volume),
             self._init_snell(self.snell_speed, self.snell_change),
             self.default_speed,
             self.height,
@@ -203,16 +205,17 @@ class DynamicPongEnv(gym.Env):
             paddle.x = self.width - paddle.width / 2
         return paddle
 
-    def _init_ball(self, ball_size: float) -> Ball:
+    def _init_ball(self, ball_size: float, has_volume: bool) -> Ball:
         """
         Create a ball object
+        :param has_volume:
         """
         max_initial_angle = math.pi / 6
         critical_angle = get_critical_angle(self.snell_speed, self.default_speed)
         if critical_angle is not None:
             if critical_angle < max_initial_angle:
                 max_initial_angle = 0.99 * critical_angle
-        ball = Ball(size=ball_size, max_initial_angle=max_initial_angle, visibility='machine')
+        ball = Ball(size=ball_size, max_initial_angle=max_initial_angle, visibility='machine', has_volume=has_volume)
         ball.pos = (self.width / 2, self.height / 2)
         return ball
 

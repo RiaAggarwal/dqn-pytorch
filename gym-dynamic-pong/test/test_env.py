@@ -334,6 +334,184 @@ class TestEnvironmentBehaviorWithRefraction(TestEnvironmentBehavior):
         self.assertAlmostEqual(expected, self.env.env.ball.angle)
 
 
+class TestEnvironmentBehaviorWithVolumeBall(TestEnvironmentBehaviorWithRefraction):
+    def setUp(self) -> None:
+        super(TestEnvironmentBehaviorWithRefraction, self).setUp()
+        self.default_speed = 10
+        self.snell_speed = 8
+        self.create_env()
+
+    def create_env(self):
+        pong_env = DynamicPongEnv(max_score=2, width=self.width,
+                                  height=self.height,
+                                  default_speed=self.default_speed,
+                                  snell_speed=self.snell_speed,
+                                  snell_change=self.snell_change,
+                                  our_paddle_speed=self.paddle_speed,
+                                  their_paddle_speed=self.paddle_speed,
+                                  our_paddle_height=self.our_paddle_height,
+                                  their_paddle_height=self.their_paddle_height,
+                                  their_update_probability=self.their_paddle_probability,
+                                  ball_has_volume=True)
+        self.env = pong_env
+        self.env.step(0)
+
+    def test_ball_hit_exact_upper_edge_and_bounces_correctly(self):
+        angle = math.pi / 4
+        speed = self.get_ball_speed()
+        y_pos = self.height - speed * math.sin(angle)
+        x_pos = self.env.env.ball.x
+
+        self.env.env.ball.y = y_pos - self.env.env.ball.height / 2
+        self.env.env.ball.angle = angle
+
+        self.env.step(0)
+        self.env.step(0)
+        self.assertAlmostEqual(y_pos, self.env.env.ball.top_bound, 2)
+        self.assertGreater(self.env.env.ball.x, x_pos)
+
+    def test_ball_bounced_off_top_moving_left_over_one_step(self):
+        angle = math.pi * 3 / 4
+        speed = self.get_ball_speed()
+        y_pos = self.height - speed * math.sin(angle) / 2
+        x_pos = self.env.env.ball.x
+
+        self.env.env.ball.y = y_pos - self.env.env.ball.height / 2
+        self.env.env.ball.angle = angle
+
+        self.env.step(0)
+        self.assertAlmostEqual(y_pos, self.env.env.ball.top_bound, 2)
+
+    def test_ball_bounced_off_bottom_moving_left_over_one_step(self):
+        angle = math.pi * 5 / 4
+        speed = self.get_ball_speed()
+        y_pos = abs(speed * math.sin(angle) / 2)
+        x_pos = self.env.env.ball.x
+
+        self.env.env.ball.y = y_pos + self.env.env.ball.height / 2
+        self.env.env.ball.angle = angle
+
+        self.env.step(0)
+        self.assertAlmostEqual(y_pos, self.env.env.ball.bottom_bound, 5)
+        self.assertLess(self.env.env.ball.x, x_pos)
+
+    def test_ball_bounced_off_bottom_moving_right_over_one_step(self):
+        angle = math.pi * 7 / 4
+        speed = self.get_ball_speed()
+        y_pos = abs(speed * math.sin(angle) / 2)
+        x_pos = self.env.env.ball.x
+
+        self.env.env.ball.y = y_pos + self.env.env.ball.height / 2
+        self.env.env.ball.angle = angle
+
+        self.env.step(0)
+        self.assertAlmostEqual(y_pos, self.env.env.ball.bottom_bound, 5)
+        self.assertGreater(self.env.env.ball.x, x_pos)
+
+    def test_ball_bounced_off_right_paddle(self):
+        angle = 0
+        y_pos = self.env.env.paddle_r.y
+        x_pos = self.width - self.default_speed / 2 - self.env.env.paddle_r.left_bound
+
+        self.env.env.ball.y = y_pos
+        self.env.env.ball.x = x_pos - self.env.env.ball.width / 2
+        self.env.env.ball.angle = angle
+
+        self.env.step(0)
+        self.assertAlmostEqual(y_pos, self.env.env.ball.y, 0)
+        self.assertAlmostEqual(x_pos, self.env.env.ball.right_bound, 1)
+
+    def test_ball_bounced_off_left_paddle(self):
+        angle = math.pi
+        y_pos = self.height / 2
+        x_pos = self.env.env.paddle_l.right_bound + self.env.default_speed / 2
+
+        self.env.env.ball.y = y_pos
+        self.env.env.ball.x = x_pos + self.env.env.ball.width / 2
+        self.env.env.ball.angle = angle
+
+        self.env.step(0)
+        self.assertAlmostEqual(y_pos, self.env.env.ball.y, 0)
+        self.assertAlmostEqual(x_pos, self.env.env.ball.left_bound, 1)
+
+    @unittest.skip
+    def test_ball_does_not_get_stuck_in_5000_steps_with_very_slow_snell_layer(self):
+        super(TestEnvironmentBehaviorWithVolumeBall, self).test_ball_does_not_get_stuck_in_5000_steps_with_very_slow_snell_layer()
+
+    def plausible_ball_motion_tester(self, n_steps, render=False):
+        self.env.step(0)
+        x_prev = self.env.env.ball.x
+        y_prev = self.env.env.ball.y
+        for i in range(n_steps):
+            self.env.step(0)
+            if render:
+                self.env.render()
+            x_pos = self.env.env.ball.x
+            y_pos = self.env.env.ball.y
+            left = self.env.env.ball.left_bound
+            right = self.env.env.ball.right_bound
+            top = self.env.env.ball.top_bound
+            bottom = self.env.env.ball.bottom_bound
+
+            # ball is too far away from any edge to interact with one and the ball is not at the default start
+            if (self.default_speed * 4 < left and
+                    right < self.width - self.default_speed * 4 and
+                    self.default_speed * 4 < bottom and
+                    top < self.height - self.default_speed * 4 and
+                    x_pos != 200):
+                # ball is moving right and up
+                if 0 < self.env.env.ball.angle < math.pi / 2:
+                    self.assertGreater(x_pos, x_prev)
+                    self.assertGreater(y_pos, y_prev)
+                # ball is moving left and up
+                elif math.pi / 2 < self.env.env.ball.angle < math.pi:
+                    self.assertLess(x_pos, x_prev)
+                    self.assertGreater(y_pos, y_prev)
+                # ball is moving left and down
+                elif math.pi < self.env.env.ball.angle < math.pi * 3 / 2:
+                    self.assertLess(x_pos, x_prev)
+                    self.assertLess(y_pos, y_prev)
+                # ball is moving right and down
+                elif math.pi * 3 / 2 < self.env.env.ball.angle < math.pi * 2:
+                    self.assertGreater(x_pos, x_prev)
+                    self.assertLess(y_pos, y_prev)
+
+            x_prev = x_pos
+            y_prev = y_pos
+
+    @unittest.skip
+    def test_ball_entering_snell_at_neg_pi_4_refracts_to_neg_0p361(self):
+        super(TestEnvironmentBehaviorWithVolumeBall, self).test_ball_entering_snell_at_neg_pi_4_refracts_to_neg_0p361()
+
+    @unittest.skip
+    def test_ball_entering_snell_at_pi_4_refracts_to_0p361(self):
+        super(TestEnvironmentBehaviorWithVolumeBall, self).test_ball_entering_snell_at_pi_4_refracts_to_0p361()
+
+    @unittest.skip
+    def test_ball_entering_snell_at_pi_minus_pi_4_refracts_to_pi_minus_0p361(self):
+        super(TestEnvironmentBehaviorWithVolumeBall, self).test_ball_entering_snell_at_pi_minus_pi_4_refracts_to_pi_minus_0p361()
+
+    @unittest.skip
+    def test_ball_entering_snell_at_pi_plus_pi_4_refracts_to_pi_plus_0p361(self):
+        super(TestEnvironmentBehaviorWithVolumeBall, self).test_ball_entering_snell_at_pi_plus_pi_4_refracts_to_pi_plus_0p361()
+
+    @unittest.skip
+    def test_ball_leaving_snell_at_neg_pi_12_refracts_to_neg_0p544(self):
+        super(TestEnvironmentBehaviorWithVolumeBall, self).test_ball_leaving_snell_at_neg_pi_12_refracts_to_neg_0p544()
+
+    @unittest.skip
+    def test_ball_leaving_snell_at_pi_12_refracts_to_0p544(self):
+        super(TestEnvironmentBehaviorWithVolumeBall, self).test_ball_leaving_snell_at_pi_12_refracts_to_0p544()
+
+    @unittest.skip
+    def test_ball_leaving_snell_at_pi_minus_pi_12_refracts_to_pi_minus_0p544(self):
+        super(TestEnvironmentBehaviorWithVolumeBall, self).test_ball_leaving_snell_at_pi_minus_pi_12_refracts_to_pi_minus_0p544()
+
+    @unittest.skip
+    def test_ball_leaving_snell_at_pi_plus_pi_12_refracts_to_pi_plus_0p544(self):
+        super(TestEnvironmentBehaviorWithVolumeBall, self).test_ball_leaving_snell_at_pi_plus_pi_12_refracts_to_pi_plus_0p544()
+
+
 class TestEnvironmentResponse(unittest.TestCase):
     def setUp(self) -> None:
         self.width = 160

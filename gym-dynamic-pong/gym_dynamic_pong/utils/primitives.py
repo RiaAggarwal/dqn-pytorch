@@ -408,8 +408,6 @@ class Rectangle(Shape):
         """
         A rectangle object with tools to detect interaction with other objects, and to render a canvas.
 
-        :param max_width: the canvas width
-        :param max_height: the canvas height
         :param height: the height of the rectangle
         :param width: the width of the rectangle
         :param kwargs: Parameters to pass to superclass. See `Shape`.
@@ -452,7 +450,7 @@ class Rectangle(Shape):
         return self.y + self.height / 2
 
     @property
-    def bot_bound(self):
+    def bottom_bound(self):
         return self.y - self.height / 2
 
     @property
@@ -469,15 +467,15 @@ class Rectangle(Shape):
 
     @property
     def right_edge(self):
-        return Line((self.right_bound, self.top_bound), (self.right_bound, self.bot_bound))
+        return Line((self.right_bound, self.top_bound), (self.right_bound, self.bottom_bound))
 
     @property
     def bot_edge(self):
-        return Line((self.right_bound, self.bot_bound), (self.left_bound, self.bot_bound))
+        return Line((self.right_bound, self.bottom_bound), (self.left_bound, self.bottom_bound))
 
     @property
     def left_edge(self):
-        return Line((self.left_bound, self.bot_bound), (self.left_bound, self.top_bound))
+        return Line((self.left_bound, self.bottom_bound), (self.left_bound, self.top_bound))
 
     def _get_edges(self) -> Tuple[Line, Line, Line, Line]:
         """
@@ -494,7 +492,7 @@ class Rectangle(Shape):
         :param other: Rectangle
         :return: `True` or `False`
         """
-        if self.bot_bound > other.top_bound or self.top_bound < other.bot_bound or self.right_bound < other.left_bound \
+        if self.bottom_bound > other.top_bound or self.top_bound < other.bottom_bound or self.right_bound < other.left_bound \
                 or self.left_bound > other.right_bound:
             return False
         else:
@@ -505,9 +503,9 @@ class Rectangle(Shape):
         Determine if `point` is in the rectangle
 
         :param point: `Point(x, y)`
-        :return: True or False
+        :return: `True` or `False`
         """
-        if self.left_bound < point.x < self.right_bound and self.bot_bound < point.y < self.top_bound:
+        if self.left_bound < point.x < self.right_bound and self.bottom_bound < point.y < self.top_bound:
             return True
         else:
             return False
@@ -526,7 +524,7 @@ class Rectangle(Shape):
         top = int(round(height - self.top_bound))
         if top < 0:
             top = 0
-        bottom = int(round(height - self.bot_bound))
+        bottom = int(round(height - self.bottom_bound))
         if bottom > height:
             bottom = height
         left = int(round(self.left_bound))
