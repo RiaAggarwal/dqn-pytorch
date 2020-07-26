@@ -113,7 +113,7 @@ class Critic(nn.Module):
         self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
         self.fc4 = nn.Linear(7 * 7 * 64, 512)
-        self.head = nn.Linear(512, 1)
+        self.head = nn.Linear(512, n_actions)
 
     def forward(self, x):
         x = x.float() / 255

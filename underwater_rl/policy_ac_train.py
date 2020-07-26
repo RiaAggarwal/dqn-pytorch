@@ -68,27 +68,45 @@ def discount_reward(r_dic, gamma):
     #r_dic = (r_dic - r_dic.mean()) / (r_dic.std() + 1e-8)
     return r_dic
 
-def optimize_model(act_p, act, reward):
+def update_target_net():
+    if steps_done % TARGET_UPDATE == 0:
+        target_net.load_state_dict(value_net.state_dict())
 
-    label = act
-    act_p = act_p.squeeze()
-    #print(act_p)
-    #print(reward)
-    #print(act)
-    label = label.long()
-    loss_fn = nn.CrossEntropyLoss(reduction="none") # for mulitple output
-    loss_value = loss_fn(act_p, label)
-    #print(loss_value.size())
-    loss = torch.dot(loss_value, reward)
-    loss = Variable(loss, requires_grad = True)
-    #print(loss)
-    optimizer.zero_grad()
+def optimize_model():
+
+    if len(memory) < BATCH_SIZE:
+        return
+
+    transitions = memory.sample(BATCH_SIZE)
+    """
+    zip(*transitions) unzips the transitions into
+    Transition(*) creates new named tuple
+    batch.state - tuple of all the states (each state is a tensor)
+    batch.next_state - tuple of all the next states (each state is a tensor)
+    batch.reward - tuple of all the rewards (each reward is a float)
+    batch.action - tuple of all the actions (each action is an int)
+    """
+    batch = Transition(*zip(*transitions))
+
+    actions = tuple((map(lambda a: torch.tensor([[a]], device=device), batch.action)))
+    rewards = tuple((map(lambda r: torch.tensor([r], device=device), batch.reward)))
+
+    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)),
+                                  device=device, dtype=torch.uint8)
+    non_final_next_states = torch.cat([s for s in batch.next_state if s is not None]).to(device)
+
+    state_batch = torch.cat(batch.state).to(device)
+    action_batch = torch.cat(actions)
+    reward_batch = torch.cat(rewards)
+    state_action_values = value_net(state_batch).gather(1, action_batch)
+    next_state_values = torch.zeros(BATCH_SIZE, device=device)
+    next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
+    expected_state_action_values = (next_state_values * GAMMA) + reward_batch.float()
+    loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
+
+    optimizerV.zero_grad()
     loss.backward()
-    for param in policy_net.parameters():
-        #param.grad.data.clamp_(-1, 1)
-        print(param.grad)
-    optimizer.step()
-
+    optimizerV.step()
 
 def train(env, n_episodes, history, render=False):
     global epoch
@@ -115,6 +133,13 @@ def train(env, n_episodes, history, render=False):
                 env.render(mode=render, save_dir=save_dir)
 
             obs, reward, done, info = env.step(action)
+
+            reward_tensor = torch.tensor([reward], device=device)
+            memory.store(state, action.to('cpu'), next_state, reward_tensor.to('cpu'))
+
+            if steps_done > INITIAL_MEMORY:
+                optimize_model()
+                update_target_net()
 
             total_reward += reward
 
@@ -178,27 +203,27 @@ def train(env, n_episodes, history, render=False):
         label = label.long()
         #print(vals)
         #print(act_p.size())
-        #print(value_pool)
+        print(value_pool)
         #print(reward_pool.size())
-        advantage = reward_pool + GAMMA*next_value_pool - vals
-        advantage_loss = reward_pool + GAMMA*next_value_pool - value_pool
+        # advantage = reward_pool + GAMMA*next_value_pool - vals
+        # advantage_loss = reward_pool + GAMMA*next_value_pool - value_pool
         policy_loss_fn = nn.CrossEntropyLoss(reduction="none")
         policy_loss_value = policy_loss_fn(act_p, label)
         policy_loss = torch.dot(policy_loss_value, advantage)
 
         #value_loss_fn = nn.MSELoss()
-        value_loss = advantage_loss.pow(2).mean()
+        # value_loss = advantage_loss.pow(2).mean()
 
         optimizerP.zero_grad()
-        optimizerV.zero_grad()
+        # optimizerV.zero_grad()
 
         policy_loss.backward()
-        value_loss.backward()
+        # value_loss.backward()
         #for param in value_net.parameters():
             #param.grad.data.clamp_(-1, 1)
             #print(param.grad)
         optimizerP.step()
-        optimizerV.step()
+        # optimizerV.step()
         #optimize_model(action_prob_pool, action_pool, reward_pool)
 
         if episode % LOG_INTERVAL == 0:
@@ -406,7 +431,9 @@ if __name__ == '__main__':
     pretrain = args.pretrain
 
     policy_net = Actor(n_actions=env.action_space.n).to(device)
-    value_net = Critic().to(device)
+    value_net = Critic(n_actions=env.action_space.n).to(device)
+    target_net = Critic(n_actions=env.action_space.n).to(device)
+    target_net.load_state_dict(value_net.state_dict())
 
     # setup optimizer
     optimizerP = optim.Adam(policy_net.parameters(), lr=lr)
@@ -425,6 +452,8 @@ if __name__ == '__main__':
         history = pickle.load(open(args.history, 'rb'))
     else:
         history = []
+
+    memory = ReplayMemory(MEMORY_SIZE)
 
     if args.test:  # test
         test(env, 1, policy_net, render=RENDER)
