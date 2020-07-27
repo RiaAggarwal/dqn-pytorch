@@ -406,6 +406,7 @@ def dispatch_make_env():
         their_paddle_angle=math.radians(args.paddle_angle),
         their_update_probability=args.update_prob,
         ball_size=args.ball_size,
+        ball_has_volume=args.ball_volume,
         state_type=args.state,
     )
 
@@ -493,7 +494,6 @@ def load_checkpoint():
     return steps_done, epoch, history
 
 
-# noinspection PyShadowingNames
 def initialize_history():
     global steps_done, epoch
     if args.resume:
@@ -516,6 +516,8 @@ def get_parser():
                           help='ball speed (default: 1.0)')
     env_args.add_argument('--ball-size', dest='ball_size', default=2.0, type=float,
                           help='ball size (default: 2.0)')
+    env_args.add_argument('--ball-volume', dest='ball_volume', action='store_true', default=False,
+                          help='If set, the ball interacts as if it has volume')
     env_args.add_argument('--snell', default=1.0, type=float,
                           help='snell speed (default: 1.0)')
     env_args.add_argument('--no-refraction', dest='no_refraction', default=False, action='store_true',
