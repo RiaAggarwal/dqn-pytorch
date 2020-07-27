@@ -641,8 +641,10 @@ def main():
     history = initialize_history()
     memory = initialize_replay_memory()
 
-    main_training_loop(args.episodes, render_mode=args.render)
-    save_checkpoint(args.store_dir)
+    try:
+        main_training_loop(args.episodes, render_mode=args.render)
+    except KeyboardInterrupt:
+        save_checkpoint(args.store_dir)
 
 
 global args, BATCH_SIZE, GAMMA, EPS_START, EPS_END, EPS_DECAY, TARGET_UPDATE, LR, INITIAL_MEMORY, MEMORY_SIZE,\
