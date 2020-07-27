@@ -1,19 +1,39 @@
 #!/usr/bin/env python3
 import argparse
-from itertools import product
+import logging
 import math
 import os
 import shutil
 import subprocess
-from typing import List, Dict
+import sys
 import time
+from itertools import product
+from typing import Dict
 
 import yaml
+
+try:
+    from underwater_rl.utils import get_args_status_string
+except ImportError:
+    sys.path.append(os.path.join('..', 'underwater_rl'))
+    from utils import get_args_status_string
+
 
 TEMP_DIR = os.path.join('.', 'configs', 'temp')
 DEFAULT_BASE = 10
 DEFAULT_STEPS = 4
 COMMANDS_PER_JOB = 5
+
+
+def get_logger():
+    logger = logging.Logger('record_search', level=logging.DEBUG)
+    log_path = os.path.join('..', 'grid-search', 'search-commands.log')
+
+    file_handler = logging.FileHandler(log_path)
+    file_handler.setFormatter(logging.Formatter('%(asctime)s\t%(message)s'))
+
+    logger.addHandler(file_handler)
+    return logger
 
 
 def parse_options(options_str: str) -> Dict:
@@ -82,6 +102,9 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--preview', action='store_true',
                         help="Do not run jobs. Do not delete temporary config files (view under configs/temp/)")
     args = parser.parse_args()
+
+    logger = get_logger()
+    logger.info(get_args_status_string(parser, args))
 
     with open(os.path.join('configs', 'default.yml'), 'r') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)

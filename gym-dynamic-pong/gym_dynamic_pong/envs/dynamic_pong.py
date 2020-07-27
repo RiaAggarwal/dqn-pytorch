@@ -92,7 +92,6 @@ class DynamicPongEnv(gym.Env):
         self.state, self.rendering = self.env.to_numpy()
         if self.state_type == 'binary':
             self.state = rgb_array_to_binary(self.state)
-            self.rendering = rgb_array_to_binary(self.rendering)
         return self.state, reward, self.episode_is_over(), {}  # {} is a generic info dictionary
 
     def episode_is_over(self):
@@ -106,7 +105,7 @@ class DynamicPongEnv(gym.Env):
             return False
 
     def reset(self):
-        self._initialize_env()
+        return self._initialize_env()
 
     def render(self, mode='human', save_dir=None):
         """
@@ -180,6 +179,8 @@ class DynamicPongEnv(gym.Env):
             self.refract,
             self.uniform_speed,
         )
+        self.state, self.rendering = self.env.to_numpy()
+        return self.state
 
     def _init_snell(self, speed: float, change_rate: float):
         # Add one to height so that the boundary does not match the border
