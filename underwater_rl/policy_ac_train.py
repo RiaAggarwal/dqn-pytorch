@@ -106,6 +106,9 @@ def optimize_model():
 
     optimizerV.zero_grad()
     loss.backward()
+    #for param in value_net.parameters():
+        #param.grad.data.clamp_(-1, 1)
+        #print(param.grad)
     optimizerV.step()
 
 def train(env, n_episodes, history, render=False):
@@ -119,6 +122,7 @@ def train(env, n_episodes, history, render=False):
         reward_pool = []
         state_pool = []
         value_pool = []
+        action_tensor_pool = []
         next_value_pool = []
         masks = []
         for t in count():
@@ -135,9 +139,9 @@ def train(env, n_episodes, history, render=False):
             obs, reward, done, info = env.step(action)
 
             reward_tensor = torch.tensor([reward], device=device)
-            memory.store(state, action.to('cpu'), next_state, reward_tensor.to('cpu'))
+            action_tensor = torch.tensor([[action]], device=device, dtype=torch.long)
 
-            if steps_done > INITIAL_MEMORY:
+            if len(memory) > 1000:
                 optimize_model()
                 update_target_net()
 
@@ -155,8 +159,9 @@ def train(env, n_episodes, history, render=False):
             if args.debug:
                 display_state(next_state)
 
-
+            memory.store(state, action_tensor.to('cpu'), next_state, reward_tensor.to('cpu'))
             action_pool.append(action)
+            action_tensor_pool.append(action_tensor)
             action_prob_pool.append(action_prob)
             reward_pool.append(reward)
             state_pool.append(state)
@@ -175,13 +180,16 @@ def train(env, n_episodes, history, render=False):
                 break
 
         epoch += 1
+        #print(len(memory))
 
         history.append((total_reward, t))
 
         action_prob_pool = torch.stack(action_prob_pool)
-
         action_pool = np.array(action_pool)
         action_pool = torch.from_numpy(action_pool).float().to(device)
+
+        action_tensor_pool = torch.stack(action_tensor_pool)
+        action_tensor_pool = action_tensor_pool.squeeze(1)
 
         masks = np.array(masks)
         masks = torch.from_numpy(masks).to(device)
@@ -191,9 +199,14 @@ def train(env, n_episodes, history, render=False):
 
         value_pool = torch.stack(value_pool)
         value_pool = value_pool.squeeze()
+        #print(action_pool)
+        #print(value_pool.gather(1, action_tensor_pool).squeeze())
+        state_action_value = value_pool.gather(1, action_tensor_pool).squeeze()
+        state_action_value = state_action_value/20.0
+        #print(state_action_value.size())
 
-        next_value_pool = torch.stack(next_value_pool)
-        next_value_pool = next_value_pool.squeeze()
+        #next_value_pool = torch.stack(next_value_pool)
+        #next_value_pool = next_value_pool.squeeze()
 
         #reward_pool = discount_reward(reward_pool, GAMMA)
 
@@ -203,13 +216,14 @@ def train(env, n_episodes, history, render=False):
         label = label.long()
         #print(vals)
         #print(act_p.size())
-        print(value_pool)
+        #print(value_pool)
         #print(reward_pool.size())
         # advantage = reward_pool + GAMMA*next_value_pool - vals
         # advantage_loss = reward_pool + GAMMA*next_value_pool - value_pool
         policy_loss_fn = nn.CrossEntropyLoss(reduction="none")
         policy_loss_value = policy_loss_fn(act_p, label)
-        policy_loss = torch.dot(policy_loss_value, advantage)
+        #print(state_action_value)
+        policy_loss = torch.dot(policy_loss_value, state_action_value.detach())
 
         #value_loss_fn = nn.MSELoss()
         # value_loss = advantage_loss.pow(2).mean()
@@ -219,7 +233,7 @@ def train(env, n_episodes, history, render=False):
 
         policy_loss.backward()
         # value_loss.backward()
-        #for param in value_net.parameters():
+        #for param in policy_net.parameters():
             #param.grad.data.clamp_(-1, 1)
             #print(param.grad)
         optimizerP.step()
