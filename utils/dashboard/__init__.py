@@ -15,3 +15,4 @@ CACHE_CONFIG = {
 
 cache = Cache()
 cache.init_app(app.server, config=CACHE_CONFIG)
+cache.clear()

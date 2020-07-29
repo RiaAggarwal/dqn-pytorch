@@ -402,9 +402,9 @@ def get_step_plot(experiments: List[str], moving_avg_len) -> go.Figure:
 
 if __name__ == '__main__':
     # noinspection PyTypeChecker
-    app.run_server(debug=False,
+    app.run_server(debug=True,
                    dev_tools_hot_reload=False,
-                   host=os.getenv("HOST", "127.0.0.1"),
-                   # host=os.getenv("HOST", "192.168.1.10"),
+                   # host=os.getenv("HOST", "127.0.0.1"),
+                   host=os.getenv("HOST", "192.168.1.10"),
                    port=os.getenv("PORT", "8050"),
                    )

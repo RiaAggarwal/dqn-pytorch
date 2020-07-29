@@ -27,9 +27,10 @@ def load_history(experiment_dir: str) -> List[Tuple[float, int]]:
     assert os.path.exists(experiment_dir), f"{experiment_dir} does not exist"
 
     file = os.path.join(experiment_dir, 'history.p')
-    with open(file, 'rb') as f:
-        history = pickle.load(f)
-    return history
+    if os.path.exists(file):
+        with open(file, 'rb') as f:
+            history = pickle.load(f)
+        return history
 
 
 @cache.memoize()
@@ -181,6 +182,8 @@ def get_multi_index_history_df(experiments: List[str]) -> pd.DataFrame:
     hist_dict = {}
     for e in experiments:
         history = load_history(os.path.join(root_dir, 'experiments', e))
+        if history is None:
+            continue
         rewards = [v[0] for v in history]
         steps = [v[1] for v in history]
         hist_dict[e] = {'reward': rewards, 'step': steps}
@@ -199,6 +202,8 @@ def _get_history_df(experiments, source, selector: int):
     df = pd.DataFrame()
     for e in experiments:
         history = load_history(os.path.join(root_dir, source, e))
+        if history is None:
+            continue
         rewards = [v[selector] for v in history]
 
         temp_df = pd.DataFrame(rewards, columns=[e])
