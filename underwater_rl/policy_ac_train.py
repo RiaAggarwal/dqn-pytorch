@@ -147,7 +147,10 @@ def train(env, n_episodes, history, render=False):
 
             total_reward += reward
 
-            if not done:
+            if (reward != 0.0):
+                next_state = None
+                
+            elif not done:
                 next_state = get_state(obs)
                 next_value = value_net.forward(next_state.to(device)).detach()
                 #next_value_pool.append(next_value)
@@ -169,6 +172,8 @@ def train(env, n_episodes, history, render=False):
             next_value_pool.append(next_value)
             masks.append(1-done)
 
+            if (reward != 0.0):
+                next_state = get_state(obs)
             state = next_state
 
             # if steps_done > INITIAL_MEMORY:
