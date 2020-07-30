@@ -104,20 +104,26 @@ def optimize_model():
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch.float()
     loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
     action_logits = policy_net(state_batch)
-    label = action_batch
+    label = action_batch.squeeze()
+    #print(label)
+    #print(action_logits)
     policy_loss_fn = nn.CrossEntropyLoss(reduction="none")
     policy_loss_value = policy_loss_fn(action_logits, label)
-    policy_loss = torch.dot(policy_loss_value, state_action_values.detach())
+    #policy_loss = torch.dot(policy_loss_value, state_action_values.detach())
+    #print(policy_loss_value.size())
+    #print(state_action_values.size())
+    q_values = state_action_values.squeeze()
+    policy_loss = torch.dot(policy_loss_value, q_values.detach())
 
 
     optimizerP.zero_grad()
     optimizerV.zero_grad()
     loss.backward()
     policy_loss.backward()
-    optimizerP.step()
-    #for param in value_net.parameters():
+    #for param in policy_net.parameters():
         #param.grad.data.clamp_(-1, 1)
         #print(param.grad)
+    optimizerP.step()
     optimizerV.step()
 
 def train(env, n_episodes, history, render=False):
@@ -403,7 +409,7 @@ if __name__ == '__main__':
         os.makedirs(args.store_dir)
 
     # hyperparameters
-    BATCH_SIZE = 32
+    BATCH_SIZE = 64
     GAMMA = 0.99
     EPS_START = 1
     EPS_END = 0.02
