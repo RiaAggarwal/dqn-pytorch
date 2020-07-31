@@ -267,6 +267,9 @@ def train_step(episode, state, total_reward, render_mode=False, save_dir=None):
     steps_done += 1
 
     action = select_action(state)
+
+    if args.debug:
+        display_state(state, 'summed')
     dispatch_render(env, render_mode, save_dir)
     obs, reward, done, info = env.step(action)
     total_reward += reward
@@ -328,24 +331,49 @@ def log_checkpoint(epoch, history, steps):
                 f'Avg steps: {avg_steps}')
 
 
-def display_state(state: torch.Tensor):
+def display_state(state: torch.Tensor, mode='sequence'):
     """
     Displays the passed state using matplotlib
 
     :param state: torch.Tensor
     :return:
     """
+    global fig, axs
+    assert mode in {'sequence', 'summed'}
+
     np_state = state.numpy().squeeze()
-    fig, axs = plt.subplots(1, len(np_state), figsize=(20, 5))
-    for img, ax in zip(np_state, axs):
-        ax.imshow(img, cmap='gray')
-    fig.show()
+    if mode == 'sequence':
+        if 'fig' not in globals().keys():
+            fig, axs = plt.subplots(1, len(np_state), figsize=(20, 5))
+            for img, ax in zip(np_state, axs):
+                ax.imshow(img, cmap='gray')
+            fig.show()
+        else:
+            for img, ax in zip(np_state, axs):
+                ax.imshow(img, cmap='gray')
+            fig.canvas.draw()
+    elif mode == 'summed':
+        if 'fig' not in globals().keys():
+            fig = plt.figure()
+            axs = fig.gca()
+            axs.imshow(np_state.sum(0), cmap='gray')
+            if args.render != 'png':
+                fig.show()
+        else:
+            axs.imshow(np_state.sum(0), cmap='gray')
+            if args.render != 'png':
+                fig.canvas.draw()
+
+    if args.render == 'png':
+        path = os.path.join(args.store_dir, 'video2')
+        if not os.path.exists(path):
+            os.makedirs(path)
+        fig.savefig(os.path.join(path, f'{env.frame_count}.png'))
 
 
 def dispatch_render(env, mode, save_dir):
     if mode:
         env.render(mode=mode, save_dir=save_dir)
-        time.sleep(0.02)
 
 
 def get_logger(store_dir):
