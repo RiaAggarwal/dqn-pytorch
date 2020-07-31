@@ -103,27 +103,26 @@ def optimize_model():
     next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch.float()
     loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
-    # action_logits = policy_net(state_batch)
-    # label = action_batch.squeeze()
+    action_logits = policy_net(state_batch)
+    label = action_batch.squeeze()
     # #print(label)
     # #print(action_logits)
-    # policy_loss_fn = nn.CrossEntropyLoss(reduction="none")
-    # policy_loss_value = policy_loss_fn(action_logits, label)
-    # #policy_loss = torch.dot(policy_loss_value, state_action_values.detach())
+    policy_loss_fn = nn.CrossEntropyLoss(reduction="none")
+    policy_loss_value = policy_loss_fn(action_logits, label)
     # #print(policy_loss_value.size())
     # #print(state_action_values.size())
-    # q_values = state_action_values.squeeze()
-    # policy_loss = torch.dot(policy_loss_value, q_values.detach())
+    q_values = state_action_values.squeeze()
+    policy_loss = torch.dot(policy_loss_value, q_values.detach())
 
 
-    # optimizerP.zero_grad()
+    optimizerP.zero_grad()
     optimizerV.zero_grad()
     loss.backward()
-    # policy_loss.backward()
+    policy_loss.backward()
     #for param in policy_net.parameters():
         #param.grad.data.clamp_(-1, 1)
         #print(param.grad)
-    # optimizerP.step()
+    optimizerP.step()
     optimizerV.step()
 
 def train(env, n_episodes, history, render=False):
@@ -133,14 +132,14 @@ def train(env, n_episodes, history, render=False):
         state = get_state(obs)  # torch.Size([1, 4, 84, 84])
         total_reward = 0.0
 
-        action_prob_pool = []
-        action_pool = []
-        reward_pool = []
-        state_pool = []
-        value_pool = []
-        action_tensor_pool = []
-        next_value_pool = []
-        masks = []
+        #action_prob_pool = []
+        #action_pool = []
+        #reward_pool = []
+        #state_pool = []
+        #value_pool = []
+        #action_tensor_pool = []
+        #next_value_pool = []
+        #masks = []
 
         for t in count():
             action_prob = policy_net.forward(state.to(device))
@@ -180,14 +179,14 @@ def train(env, n_episodes, history, render=False):
                 display_state(next_state)
 
             memory.store(state, action_tensor.to('cpu'), next_state, reward_tensor.to('cpu'))
-            action_pool.append(action)
-            action_tensor_pool.append(action_tensor)
-            action_prob_pool.append(action_prob)
-            reward_pool.append(reward)
-            state_pool.append(state)
-            value_pool.append(value)
-            # next_value_pool.append(next_value)
-            masks.append(1-done)
+            #action_pool.append(action)
+            #action_tensor_pool.append(action_tensor)
+            #action_prob_pool.append(action_prob)
+            #reward_pool.append(reward)
+            #state_pool.append(state)
+            #value_pool.append(value)
+            #next_value_pool.append(next_value)
+            #masks.append(1-done)
 
             if (reward != 0.0):
                 next_state = get_state(obs)
@@ -206,24 +205,24 @@ def train(env, n_episodes, history, render=False):
 
         history.append((total_reward, t))
 
-        action_prob_pool = torch.stack(action_prob_pool)
-        action_pool = np.array(action_pool)
-        action_pool = torch.from_numpy(action_pool).float().to(device)
+        #action_prob_pool = torch.stack(action_prob_pool)
+        #action_pool = np.array(action_pool)
+        #action_pool = torch.from_numpy(action_pool).float().to(device)
         #
-        action_tensor_pool = torch.stack(action_tensor_pool)
-        action_tensor_pool = action_tensor_pool.squeeze(1)
+        #action_tensor_pool = torch.stack(action_tensor_pool)
+        #action_tensor_pool = action_tensor_pool.squeeze(1)
 
-        masks = np.array(masks)
-        masks = torch.from_numpy(masks).to(device)
+        #masks = np.array(masks)
+        #masks = torch.from_numpy(masks).to(device)
         #
-        reward_pool = np.array(reward_pool)
-        reward_pool = torch.from_numpy(reward_pool).float().to(device)
+        #reward_pool = np.array(reward_pool)
+        #reward_pool = torch.from_numpy(reward_pool).float().to(device)
 
-        value_pool = torch.stack(value_pool)
-        value_pool = value_pool.squeeze()
+        #value_pool = torch.stack(value_pool)
+        #value_pool = value_pool.squeeze()
         #print(action_pool)
         #print(value_pool.gather(1, action_tensor_pool).squeeze())
-        state_action_value = value_pool.gather(1, action_tensor_pool).squeeze()
+        #state_action_value = value_pool.gather(1, action_tensor_pool).squeeze()
         #state_action_value = state_action_value/20.0
         # print(state_action_value.size())
 
@@ -232,33 +231,33 @@ def train(env, n_episodes, history, render=False):
 
         #reward_pool = discount_reward(reward_pool, GAMMA)
 
-        label = action_pool
-        act_p = action_prob_pool.squeeze()
-        vals = value_pool.detach()
-        label = label.long()
+        #label = action_pool
+        #act_p = action_prob_pool.squeeze()
+        #vals = value_pool.detach()
+        #label = label.long()
         #print(vals)
         #print(act_p.size())
         #print(value_pool)
         #print(reward_pool.size())
         # advantage = reward_pool + GAMMA*next_value_pool - vals
         # # advantage_loss = reward_pool + GAMMA*next_value_pool - value_pool
-        policy_loss_fn = nn.CrossEntropyLoss(reduction="none")
-        policy_loss_value = policy_loss_fn(act_p, label)
+        #policy_loss_fn = nn.CrossEntropyLoss(reduction="none")
+        #policy_loss_value = policy_loss_fn(act_p, label)
         #print(state_action_value)
-        policy_loss = torch.dot(policy_loss_value, state_action_value.detach())
+        #policy_loss = torch.dot(policy_loss_value, state_action_value.detach())
         #
         # #value_loss_fn = nn.MSELoss()
         # # value_loss = advantage_loss.pow(2).mean()
         #
-        optimizerP.zero_grad()
+        #optimizerP.zero_grad()
         # # optimizerV.zero_grad()
         #
-        policy_loss.backward()
+        #policy_loss.backward()
         # # value_loss.backward()
-        # #for param in policy_net.parameters():
-        #     #param.grad.data.clamp_(-1, 1)
-        #     #print(param.grad)
-        optimizerP.step()
+        #for param in policy_net.parameters():
+             #param.grad.data.clamp_(-1, 1)
+            #print(param.grad)
+        #optimizerP.step()
         # optimizerV.step()
         #optimize_model(action_prob_pool, action_pool, reward_pool)
 
@@ -375,13 +374,13 @@ if __name__ == '__main__':
                          help='Run the model without training')
     rl_args.add_argument('--render', default=False, type=str, choices=['human', 'png'],
                          help="Rendering mode. Omit if no rendering is desired.")
-    rl_args.add_argument('--epsdecay', default=1000, type=int,
-                         help="epsilon decay (default: 1000)")
+    rl_args.add_argument('--epsdecay', default=10000, type=int,
+            help="epsilon decay (default: 10000)")
     rl_args.add_argument('--stepsdecay', default=False, action='store_true',
                          help="switch to use default step decay")
     rl_args.add_argument('--episodes', dest='episodes', default=4000, type=int,
                          help='Number of episodes to train for (default: 4000)')
-    rl_args.add_argument('--replay', default=10000, type=int,
+    rl_args.add_argument('--replay', default=1000, type=int,
                          help="change the replay mem size (default: 10000)")
     rl_args.add_argument('--priority', default=False, action='store_true',
                          help='switch for prioritized replay (default: False)')
