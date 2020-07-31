@@ -18,6 +18,6 @@ episodes: 4000
 network: dqn_pong_model
 #pretrain:  # comment out to turn off
 state: "binary"
-replay: 10000
+replay: 100_000
 #priority: # comment out to turn off
 #rankbased: # comment out to turn off

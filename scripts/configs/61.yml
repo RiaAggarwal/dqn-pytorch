@@ -17,6 +17,6 @@ history: ../experiments/5-t2/history.p
 network: dqn_pong_model
 #pretrain:  # comment out to turn off
 state: "binary"
-replay: 10000
+replay: 100_000
 #priority: # comment out to turn off
 #rankbased: # comment out to turn off
