@@ -167,8 +167,9 @@ def optimize_policy_model():
     # #print(policy_loss_value.size())
     #print(state_action_values)
     q_values = state_action_values.squeeze()
-    advantage = expected_state_action_values - q_values
+    advantage = q_values - expected_state_action_values
     if architecture == 'a2c':
+        #print("a2c")
         policy_loss = torch.dot(policy_loss_value, advantage)
     else:
         policy_loss = torch.dot(policy_loss_value, q_values.detach())
