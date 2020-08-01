@@ -120,18 +120,19 @@ def optimize_model():
     optimizerV.zero_grad()
     loss.backward()
     # policy_loss.backward()
-    #for param in policy_net.parameters():
+    #for param in value_net.parameters():
         #param.grad.data.clamp_(-1, 1)
         #print(param.grad)
     # optimizerP.step()
     optimizerV.step()
 
 def optimize_policy_model():
-
-    if len(policy_memory) < BATCH_SIZE:
+    if steps_done % TARGET_UPDATE != 0:
+        return
+    if len(policy_memory) < 1000:
         return
 
-    transitions = policy_memory.sample(BATCH_SIZE)
+    transitions = policy_memory.sample(1000)
 
     """
     zip(*transitions) unzips the transitions into
@@ -154,7 +155,7 @@ def optimize_policy_model():
     action_batch = torch.cat(actions)
     reward_batch = torch.cat(rewards)
     state_action_values = value_net(state_batch).gather(1, action_batch)
-    next_state_values = torch.zeros(BATCH_SIZE, device=device)
+    next_state_values = torch.zeros(1000, device=device)
     next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch.float()
     action_logits = policy_net(state_batch)
@@ -164,7 +165,7 @@ def optimize_policy_model():
     policy_loss_fn = nn.CrossEntropyLoss(reduction="none")
     policy_loss_value = policy_loss_fn(action_logits, label)
     # #print(policy_loss_value.size())
-    # #print(state_action_values.size())
+    #print(state_action_values)
     q_values = state_action_values.squeeze()
     policy_loss = torch.dot(policy_loss_value, q_values.detach())
 
@@ -180,6 +181,7 @@ def optimize_policy_model():
 
 def train(env, n_episodes, history, render=False):
     global epoch
+    global steps_done
     for episode in range(1, n_episodes + 1):
         obs = env.reset()
         state = get_state(obs)  # torch.Size([1, 4, 84, 84])
@@ -197,6 +199,7 @@ def train(env, n_episodes, history, render=False):
         for t in count():
             action_prob = policy_net.forward(state.to(device))
             value = value_net.forward(state.to(device))
+            steps_done += 1
             #print(value)
             action  = select_action(action_prob)
             #print(action)
@@ -466,7 +469,7 @@ if __name__ == '__main__':
         os.makedirs(args.store_dir)
 
     # hyperparameters
-    BATCH_SIZE = 64
+    BATCH_SIZE = 32
     GAMMA = 0.99
     EPS_START = 1
     EPS_END = 0.02
