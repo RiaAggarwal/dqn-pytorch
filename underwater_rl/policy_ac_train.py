@@ -167,7 +167,11 @@ def optimize_policy_model():
     # #print(policy_loss_value.size())
     #print(state_action_values)
     q_values = state_action_values.squeeze()
-    policy_loss = torch.dot(policy_loss_value, q_values.detach())
+    advantage = expected_state_action_values - q_values
+    if architecture == 'a2c':
+        policy_loss = torch.dot(policy_loss_value, advantage)
+    else:
+        policy_loss = torch.dot(policy_loss_value, q_values.detach())
 
 
     optimizerP.zero_grad()
@@ -521,7 +525,7 @@ if __name__ == '__main__':
     env = make_env(env, episodic_life=True, clip_rewards=True)
 
     # create networks
-    #architecture = args.network
+    architecture = args.network
     pretrain = args.pretrain
 
     policy_net = Actor(n_actions=env.action_space.n).to(device)
