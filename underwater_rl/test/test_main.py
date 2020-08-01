@@ -44,6 +44,8 @@ def set_main_args():
     main.args.store_dir = '__temp__'
     main.args.test = False
     main.args.resume = False
+    main.args.ball_volume = False
+    main.args.debug = False
 
     main.LR = 1E-4
     main.STEPSDECAY = False
@@ -80,7 +82,7 @@ def make_env(architecture):
 
 def initialize_models(architecture):
     main.architecture = architecture
-    main.policy_net, main.target_net = main.get_models()
+    main.policy_net, main.target_net = main.get_models(architecture, 3)
     main.optimizer = optim.Adam(main.policy_net.parameters(), lr=main.LR)
     main.memory = main.initialize_replay_memory()
     main.history = main.initialize_history()
@@ -139,7 +141,7 @@ class TestModelInitialization(unittest.TestCase):
         set_main_args()
 
     def assert_correct_initialization(self, model_class):
-        main.policy_net, main.target_net = main.get_models()
+        main.policy_net, main.target_net = main.get_models(main.architecture, 3)
         self.assertEqual(type(main.policy_net), model_class)
         self.assertEqual(type(main.target_net), model_class)
         self.assertTrue(*utils.models_are_equal(main.policy_net, main.target_net))
@@ -168,7 +170,7 @@ class TestSelectAction(unittest.TestCase):
         obs = main.env.reset()
         self.state = main.get_state(obs)
 
-        main.policy_net, main.target_net = main.get_models()
+        main.policy_net, main.target_net = main.get_models(main.architecture, 3)
 
     def tearDown(self) -> None:
         try:

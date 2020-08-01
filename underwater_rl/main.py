@@ -446,26 +446,26 @@ def dispatch_make_env():
     return env
 
 
-def get_models():
+def get_models(architecture, n_actions):
     if architecture == 'dqn_pong_model':
-        policy_net = DQN(n_actions=env.action_space.n).to(device)
-        target_net = DQN(n_actions=env.action_space.n).to(device)
+        policy_net = DQN(n_actions=n_actions).to(device)
+        target_net = DQN(n_actions=n_actions).to(device)
         target_net.load_state_dict(policy_net.state_dict())
     elif architecture == 'soft_dqn':
-        policy_net = softDQN(n_actions=env.action_space.n).to(device)
-        target_net = softDQN(n_actions=env.action_space.n).to(device)
+        policy_net = softDQN(n_actions=n_actions).to(device)
+        target_net = softDQN(n_actions=n_actions).to(device)
         target_net.load_state_dict(policy_net.state_dict())
     elif architecture == 'dueling_dqn':
-        policy_net = DuelingDQN(n_actions=env.action_space.n).to(device)
-        target_net = DuelingDQN(n_actions=env.action_space.n).to(device)
+        policy_net = DuelingDQN(n_actions=n_actions).to(device)
+        target_net = DuelingDQN(n_actions=n_actions).to(device)
         target_net.load_state_dict(policy_net.state_dict())
     elif architecture == 'lstm':
-        policy_net = DRQN(n_actions=env.action_space.n).to(device)
-        target_net = DRQN(n_actions=env.action_space.n).to(device)
+        policy_net = DRQN(n_actions=n_actions).to(device)
+        target_net = DRQN(n_actions=n_actions).to(device)
         target_net.load_state_dict(policy_net.state_dict())
     elif architecture == 'distribution_dqn':
-        policy_net = DistributionalDQN(n_actions=env.action_space.n).to(device)
-        target_net = DistributionalDQN(n_actions=env.action_space.n).to(device)
+        policy_net = DistributionalDQN(n_actions=n_actions).to(device)
+        target_net = DistributionalDQN(n_actions=n_actions).to(device)
         target_net.load_state_dict(policy_net.state_dict())
     else:
         if architecture == 'resnet18':
@@ -495,11 +495,11 @@ def get_models():
 
         num_ftrs = policy_net.fc.in_features
         policy_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        policy_net.fc = nn.Linear(num_ftrs, env.action_space.n)
+        policy_net.fc = nn.Linear(num_ftrs, n_actions)
         policy_net = policy_net.to(device)
         num_ftrs = target_net.fc.in_features
         target_net.conv1 = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        target_net.fc = nn.Linear(num_ftrs, env.action_space.n)
+        target_net.fc = nn.Linear(num_ftrs, n_actions)
         target_net = target_net.to(device)
         target_net.load_state_dict(policy_net.state_dict())
 
@@ -661,7 +661,7 @@ def main():
     logger.info(f'Device: {device}')
 
     env = dispatch_make_env()
-    policy_net, target_net = get_models()
+    policy_net, target_net = get_models(architecture, env.action_space.n)
 
     steps_done = 0
     epoch = 0
