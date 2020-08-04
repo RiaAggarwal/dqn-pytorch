@@ -219,9 +219,10 @@ def main_training_loop(n_episodes, render_mode=False):
     global epoch
     save_dir = os.path.join(args.store_dir, 'video')
 
+    train_pong.initial(args.store_dir)
     for episode in range(1, n_episodes + 1):
         train_episode(episode, render_mode, save_dir)
-        if args.train_prediction:
+        if args.train_prediction and episode>40:
             train_prediction()
     env.close()
     finish_rendering(render_mode, save_dir)

@@ -16,6 +16,11 @@ from .utils import create_array, generate_video
 
 Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
 
+def initial(store_dir):
+    model = EncoderDecoderConvLSTM(nf=64, in_chan=1)
+    path = os.path.join(store_dir, 'pred.pth.tar')
+    torch.save(model.state_dict(), path)
+    
 def training(dataloader, store_dir, learning_rate, logger, num_epochs=50):
     # initialize
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") 
@@ -24,10 +29,7 @@ def training(dataloader, store_dir, learning_rate, logger, num_epochs=50):
     criterion=nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     # train
-    try:
-        model.load_state_dict(torch.load(path))
-    except:
-        pass
+    model.load_state_dict(torch.load(path))
     training_loss = []
     logger.info(f'Started training prediction on {device}')
     for epoch in range(num_epochs):
@@ -35,7 +37,7 @@ def training(dataloader, store_dir, learning_rate, logger, num_epochs=50):
         start = time.time()
         for batch in dataloader:            # (10,4,84,84)
             batch = batch.unsqueeze(2).to(device)           # (b, t, c, h, w)  (10, 4, 1, 84, 84)
-            x, y = batch[:, 0:4, :, :, :], batch[:, 4:, :, :, :].squeeze()
+            x, y = batch[:, 0:4, :, :, :].float(), batch[:, 4:, :, :, :].squeeze()
             # optimize step
             optimizer.zero_grad()
             y_hat = model(x, future_seq=4).squeeze()
@@ -65,7 +67,7 @@ def testing(dataloader, store_dir):
     with torch.no_grad():
         for batch in dataloader:
             batch = batch.unsqueeze(2).to(device)
-            x, y = batch[:, 0:4, :, :, :], batch[:, 4:, :, :, :].squeeze()
+            x, y = batch[:, 0:4, :, :, :].float(), batch[:, 4:, :, :, :].squeeze()
             y_hat = model(x, future_seq=4).squeeze()
             testing_loss = criterion(y_hat, y)
             video_frames = create_array(y_hat, y)
