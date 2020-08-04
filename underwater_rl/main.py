@@ -93,8 +93,6 @@ def optimize_model():
 
     loss = get_loss(state_action_values, expected_state_action_values, idxs, weights)
     step_optimizer(loss)
-    if args.train_prediction:
-        train_prediction()
 
 
 def optimize_lstm():
@@ -173,7 +171,7 @@ def step_optimizer(loss):
 
 
 def separate_batches(actions, batch, rewards):
-    state_batch = torch.cat(batch.state).to(device)
+    state_batch = torch.cat(batch.state).to(device) # torch.Size([32, 4, 84, 84])
     action_batch = torch.cat(actions)
     reward_batch = torch.cat(rewards)
     return action_batch, reward_batch, state_batch
@@ -223,7 +221,8 @@ def main_training_loop(n_episodes, render_mode=False):
 
     for episode in range(1, n_episodes + 1):
         train_episode(episode, render_mode, save_dir)
-
+        if args.train_prediction:
+            train_prediction()
     env.close()
     finish_rendering(render_mode, save_dir)
 
@@ -353,8 +352,7 @@ def dispatch_render(env, mode, save_dir):
 
 def train_prediction():
     train_loader = train_pong.train_dataloader(replay=memory)
-    print(train_loader)
-    train_pong.training(dataloader=train_loader, store_dir=args.store_dir, learning_rate=args.lr, logger=logger)
+    training_loss = train_pong.training(dataloader=train_loader, store_dir=args.store_dir, learning_rate=LR, logger=logger)
 
 def get_logger(store_dir):
     log_path = os.path.join(store_dir, 'output.log')

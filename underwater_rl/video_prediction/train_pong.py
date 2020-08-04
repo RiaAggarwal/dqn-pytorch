@@ -16,26 +16,25 @@ from .utils import create_array, generate_video
 
 Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
 
-# TODO
-    # 1. image size     84
-    # 2. sequence length    4
-    # 3. dataloader
-
-def training(dataloader, store_dir, learning_rate, logger, num_epochs=300):
+def training(dataloader, store_dir, learning_rate, logger, num_epochs=50):
     # initialize
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") 
     model = EncoderDecoderConvLSTM(nf=64, in_chan=1).to(device)
-    path = os.path.join(store_dir, 'model.pth.tar')
+    path = os.path.join(store_dir, 'pred.pth.tar')
     criterion=nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     # train
+    try:
+        model.load_state_dict(torch.load(path))
+    except:
+        pass
     training_loss = []
-    logger.info(f'Started training on {device}')
+    logger.info(f'Started training prediction on {device}')
     for epoch in range(num_epochs):
         running_loss = 0
         start = time.time()
-        for batch in dataloader:        # (b, t, c, h, w)  (1,4,84,84)
-            batch = batch.unsqueeze(2).to(device)
+        for batch in dataloader:            # (10,4,84,84)
+            batch = batch.unsqueeze(2).to(device)           # (b, t, c, h, w)  (10, 4, 1, 84, 84)
             x, y = batch[:, 0:4, :, :, :], batch[:, 4:, :, :, :].squeeze()
             # optimize step
             optimizer.zero_grad()
@@ -51,7 +50,7 @@ def training(dataloader, store_dir, learning_rate, logger, num_epochs=300):
         if epoch % 50 == 0:
             torch.save(model.state_dict(), path)
         logger.info(f'video-prediction \t epoch: {epoch} \t loss: {epoch_loss} \t time: {end/60}min')
-    logger.info('Finished training')
+    logger.info('Finished training prediction')
     torch.save(model.state_dict(), path)
     return training_loss
 
@@ -59,7 +58,7 @@ def testing(dataloader, store_dir):
     # load
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") 
     model = EncoderDecoderConvLSTM(nf=64, in_chan=1).to(device)
-    path = os.path.join(store_dir, 'model.pth.tar')
+    path = os.path.join(store_dir, 'pred.pth.tar')
     model.load_state_dict(torch.load(path))
     # test
     criterion=nn.MSELoss()
@@ -76,11 +75,9 @@ def testing(dataloader, store_dir):
 
 def train_dataloader(replay, batch_size=10):
     # put in optimize_model after getting state_batch from memory_sample
-    transitions = replay.sample(1000)
+    transitions = replay.sample(100)
     batch = Transition(*zip(*transitions))
-    print(batch.state.shape)
     train_data = torch.cat(batch.state)
-    print(train_data.shape)
     train_loader = torch.utils.data.DataLoader(
         dataset=train_data,
         batch_size=batch_size,
@@ -88,7 +85,7 @@ def train_dataloader(replay, batch_size=10):
     return train_loader
 
 def test_dataloader(replay, batch_size=10):
-    test_data = replay.sample(1000)
+    test_data = replay.sample(100)
     test_loader = torch.utils.data.DataLoader(
         dataset=test_data,
         batch_size=batch_size,
