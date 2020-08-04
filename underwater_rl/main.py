@@ -28,11 +28,13 @@ try:
     from .models import *
     from .wrappers import *
     from .utils import convert_images_to_video, distr_projection, get_args_status_string
+    from .video_prediction import train_pong
 except ImportError:
     from memory import *
     from models import *
     from wrappers import *
     from utils import convert_images_to_video, distr_projection, get_args_status_string
+    from video_prediction import train_pong
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -347,6 +349,8 @@ def dispatch_render(env, mode, save_dir):
         env.render(mode=mode, save_dir=save_dir)
         time.sleep(0.02)
 
+def train_prediction():
+    train_loader = train_pong.train_dataloader(replay, batch_size=10)
 
 def get_logger(store_dir):
     log_path = os.path.join(store_dir, 'output.log')
@@ -573,7 +577,9 @@ def get_parser():
                          help='switch for rank-based prioritized replay (omit if proportional)')
     rl_args.add_argument('--batch-size', dest='batch_size', default=32, type=int,
                          help="network training batch size or sequence length for recurrent networks")
-
+    rl_args.add_argument('--train-prediction', default=False, action='store_true',
+                         help='train prediction(default: False)')
+    
     '''resume args'''
     resume_args = parser.add_argument_group("Resume", "Store experiments / Resume training")
     resume_args.add_argument('--resume', dest='resume', action='store_true',
