@@ -11,8 +11,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from ConvLSTM import EncoderDecoderConvLSTM
-from utils import create_array, generate_video
+from .ConvLSTM import EncoderDecoderConvLSTM
+from .utils import create_array, generate_video
 
 Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
 
@@ -80,6 +80,7 @@ def train_dataloader(replay, batch_size=10):
     batch = Transition(*zip(*transitions))
     print(batch.state.shape)
     train_data = torch.cat(batch.state)
+    print(train_data.shape)
     train_loader = torch.utils.data.DataLoader(
         dataset=train_data,
         batch_size=batch_size,

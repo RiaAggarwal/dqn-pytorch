@@ -93,6 +93,8 @@ def optimize_model():
 
     loss = get_loss(state_action_values, expected_state_action_values, idxs, weights)
     step_optimizer(loss)
+    if args.train_prediction:
+        train_prediction()
 
 
 def optimize_lstm():
@@ -350,7 +352,9 @@ def dispatch_render(env, mode, save_dir):
         time.sleep(0.02)
 
 def train_prediction():
-    train_loader = train_pong.train_dataloader(replay, batch_size=10)
+    train_loader = train_pong.train_dataloader(replay=memory)
+    print(train_loader)
+    train_pong.training(dataloader=train_loader, store_dir=args.store_dir, learning_rate=args.lr, logger=logger)
 
 def get_logger(store_dir):
     log_path = os.path.join(store_dir, 'output.log')
@@ -577,7 +581,7 @@ def get_parser():
                          help='switch for rank-based prioritized replay (omit if proportional)')
     rl_args.add_argument('--batch-size', dest='batch_size', default=32, type=int,
                          help="network training batch size or sequence length for recurrent networks")
-    rl_args.add_argument('--train-prediction', default=False, action='store_true',
+    rl_args.add_argument('--train-prediction', dest='train_prediction', default=False, action='store_true',
                          help='train prediction(default: False)')
     
     '''resume args'''
