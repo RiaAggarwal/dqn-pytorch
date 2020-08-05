@@ -23,16 +23,21 @@ def initial(store_dir):
     
 def training(dataloader, store_dir, learning_rate, logger, num_epochs=30):
     # initialize
+    global epoch
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") 
-    model = EncoderDecoderConvLSTM(nf=64, in_chan=1).to(device)
+    model = EncoderDecoderConvLSTM(nf=64, in_chan=1)
     path = os.path.join(store_dir, 'pred.pth.tar')
     criterion=nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    # train
     model.load_state_dict(torch.load(path))
+    if torch.cuda.device_count() > 1:
+        torch.cuda.manual_seed_all(seed=1234)
+        model = nn.DataParallel(model)
+    model.to(device)
+    # train
     training_loss = []
     logger.info(f'Started training prediction on {device}')
-    for epoch in range(num_epochs):
+    for inepoch in range(num_epochs):
         running_loss = 0
         start = time.time()
         for batch in dataloader:            # (10,8,84,84)
@@ -49,9 +54,9 @@ def training(dataloader, store_dir, learning_rate, logger, num_epochs=30):
         epoch_loss = running_loss / len(dataloader)
         training_loss.append(epoch_loss)
         end = time.time() - start
-        if epoch % 50 == 0:
+        if inepoch % 50 == 0:
             torch.save(model.state_dict(), path)
-        logger.info(f'video-prediction \t epoch: {epoch} \t loss: {epoch_loss} \t time: {end/60}min')
+            logger.info(f'video-prediction \t epoch: {epoch} \t inepoch: {inepoch} \t loss: {epoch_loss} \t time: {end/60}min')
     logger.info('Finished training prediction')
     torch.save(model.state_dict(), path)
     return training_loss
@@ -76,12 +81,11 @@ def testing(dataloader, store_dir):
     return testing_loss.cpu()
 
 def train_dataloader(replay, batch_size=10):
-    # put in optimize_model after getting state_batch from memory_sample
     transitions = replay.sample(200)
     batch = Transition(*zip(*transitions))
-    state = torch.cat(batch.state)
-    next_state = torch.cat(batch.next_state)
-    train_data = torch.cat((state,next_state), dim=1)
+    state = torch.cat([batch.state[i] for i,s in enumerate(batch.next_state) if s is not None])
+    next_state = torch.cat([s for s in batch.next_state if s is not None])
+    train_data = torch.cat((state,next_state), dim=1)   # (sample_size=200,8,84,84)
     train_loader = torch.utils.data.DataLoader(
         dataset=train_data,
         batch_size=batch_size,
