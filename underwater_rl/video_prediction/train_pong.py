@@ -37,7 +37,7 @@ def training(dataloader, store_dir, learning_rate, logger, num_epochs=30):
         start = time.time()
         for batch in dataloader:            # (10,8,84,84)
             batch = batch.unsqueeze(2).to(device)           # (b, t, c, h, w)  (10, 8, 1, 84, 84)
-            x, y = batch[:, 0:4, :, :, :].float(), batch[:, 4:8, :, :, :].squeeze()
+            x, y = batch[:, 0:4, :, :, :].float(), batch[:, 4:8, :, :, :].float().squeeze()
             # optimize step
             optimizer.zero_grad()
             y_hat = model(x, future_seq=4).squeeze()
@@ -67,7 +67,7 @@ def testing(dataloader, store_dir):
     with torch.no_grad():
         for batch in dataloader:
             batch = batch.unsqueeze(2).to(device)
-            x, y = batch[:, 0:4, :, :, :].float(), batch[:, 4:, :, :, :].squeeze()
+            x, y = batch[:, 0:4, :, :, :].float(), batch[:, 4:, :, :, :].float().squeeze()
             y_hat = model(x, future_seq=4).squeeze()
             testing_loss = criterion(y_hat, y)
             video_frames = create_array(y_hat, y)
