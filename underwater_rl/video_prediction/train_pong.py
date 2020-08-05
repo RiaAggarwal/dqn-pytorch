@@ -21,7 +21,7 @@ def initial(store_dir):
     path = os.path.join(store_dir, 'pred.pth.tar')
     torch.save(model.state_dict(), path)
     
-def training(dataloader, store_dir, learning_rate, logger, num_epochs=50):
+def training(dataloader, store_dir, learning_rate, logger, num_epochs=30):
     # initialize
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") 
     model = EncoderDecoderConvLSTM(nf=64, in_chan=1).to(device)
@@ -35,9 +35,9 @@ def training(dataloader, store_dir, learning_rate, logger, num_epochs=50):
     for epoch in range(num_epochs):
         running_loss = 0
         start = time.time()
-        for batch in dataloader:            # (10,4,84,84)
-            batch = batch.unsqueeze(2).to(device)           # (b, t, c, h, w)  (10, 4, 1, 84, 84)
-            x, y = batch[:, 0:4, :, :, :].float(), batch[:, 4:, :, :, :].squeeze()
+        for batch in dataloader:            # (10,8,84,84)
+            batch = batch.unsqueeze(2).to(device)           # (b, t, c, h, w)  (10, 8, 1, 84, 84)
+            x, y = batch[:, 0:4, :, :, :].float(), batch[:, 4:8, :, :, :].squeeze()
             # optimize step
             optimizer.zero_grad()
             y_hat = model(x, future_seq=4).squeeze()
@@ -77,9 +77,11 @@ def testing(dataloader, store_dir):
 
 def train_dataloader(replay, batch_size=10):
     # put in optimize_model after getting state_batch from memory_sample
-    transitions = replay.sample(100)
+    transitions = replay.sample(200)
     batch = Transition(*zip(*transitions))
-    train_data = torch.cat(batch.state)
+    state = torch.cat(batch.state)
+    next_state = torch.cat(batch.next_state)
+    train_data = torch.cat((state,next_state), dim=1)
     train_loader = torch.utils.data.DataLoader(
         dataset=train_data,
         batch_size=batch_size,
