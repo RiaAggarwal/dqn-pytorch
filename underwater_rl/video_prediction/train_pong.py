@@ -38,7 +38,6 @@ def training(dataloader, store_dir, learning_rate, logger, num_epochs=30):
     model.to(device)
     # train
     training_loss = []
-    logger.info(f'Started training prediction on {device}')
     for inepoch in range(1,num_epochs+1):
         running_loss = 0
         start = time.time()
@@ -58,7 +57,7 @@ def training(dataloader, store_dir, learning_rate, logger, num_epochs=30):
         end = time.time() - start
         if inepoch % 10 == 0:
             torch.save(model.state_dict(), path)
-            logger.info(f'video-prediction \t inepoch: {inepoch} \t loss: {epoch_loss} \t time: {end}s')
+            logger.info(f'video-prediction \t inepoch: {inepoch} \t loss: {epoch_loss:.6f} \t time: {end:.2f}s')
     torch.save(model.state_dict(), path)
     return training_loss
 

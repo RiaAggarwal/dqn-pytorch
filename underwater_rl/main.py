@@ -218,14 +218,15 @@ def main_training_loop(n_episodes, render_mode=False):
     """
     global epoch
     save_dir = os.path.join(args.store_dir, 'video')
-
-    train_pong.initial(args.store_dir)
+    
+    if args.train_prediction:
+        train_pong.initial(args.store_dir)
     for episode in range(1, n_episodes + 1):
         train_episode(episode, render_mode, save_dir)
         if args.train_prediction and episode > n_episodes//100:
-            logger.info(f'start training prediction in episode {episode}')
+            if episode%10 == 1:
+                logger.info(f'Start training prediction on {device} in episode {episode}')
             train_prediction()
-            logger.info('Finished training prediction')
     env.close()
     finish_rendering(render_mode, save_dir)
 
@@ -475,6 +476,10 @@ def get_models(architecture, n_actions):
     elif architecture == 'distribution_dqn':
         policy_net = DistributionalDQN(n_actions=n_actions).to(device)
         target_net = DistributionalDQN(n_actions=n_actions).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+    elif architecture == 'predict_dqn':
+        policy_net = DQN(in_channels=8, n_actions=n_actions).to(device)
+        target_net = DQN(in_channels=8, n_actions=n_actions).to(device)
         target_net.load_state_dict(policy_net.state_dict())
     else:
         if architecture == 'resnet18':
