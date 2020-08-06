@@ -23,7 +23,6 @@ def initial(store_dir):
     
 def training(dataloader, store_dir, learning_rate, logger, num_epochs=30):
     # initialize
-    global epoch
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") 
     model = EncoderDecoderConvLSTM(nf=64, in_chan=1)
     path = os.path.join(store_dir, 'pred.pth.tar')
@@ -56,8 +55,7 @@ def training(dataloader, store_dir, learning_rate, logger, num_epochs=30):
         end = time.time() - start
         if inepoch % 50 == 0:
             torch.save(model.state_dict(), path)
-            logger.info(f'video-prediction \t epoch: {epoch} \t inepoch: {inepoch} \t loss: {epoch_loss} \t time: {end/60}min')
-    logger.info('Finished training prediction')
+            logger.info(f'video-prediction \t inepoch: {inepoch} \t loss: {epoch_loss} \t time: {end/60}min')
     torch.save(model.state_dict(), path)
     return training_loss
 
