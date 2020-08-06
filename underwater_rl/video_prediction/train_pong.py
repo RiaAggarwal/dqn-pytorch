@@ -18,6 +18,9 @@ Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'
 
 def initial(store_dir):
     model = EncoderDecoderConvLSTM(nf=64, in_chan=1)
+    if torch.cuda.device_count() > 1:
+        torch.cuda.manual_seed_all(seed=1234)
+        model = nn.DataParallel(model)
     path = os.path.join(store_dir, 'pred.pth.tar')
     torch.save(model.state_dict(), path)
     
@@ -28,15 +31,15 @@ def training(dataloader, store_dir, learning_rate, logger, num_epochs=30):
     path = os.path.join(store_dir, 'pred.pth.tar')
     criterion=nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    model.load_state_dict(torch.load(path))
     if torch.cuda.device_count() > 1:
         torch.cuda.manual_seed_all(seed=1234)
         model = nn.DataParallel(model)
+    model.load_state_dict(torch.load(path))
     model.to(device)
     # train
     training_loss = []
     logger.info(f'Started training prediction on {device}')
-    for inepoch in range(num_epochs):
+    for inepoch in range(1,num_epochs+1):
         running_loss = 0
         start = time.time()
         for batch in dataloader:            # (10,8,84,84)
@@ -53,9 +56,9 @@ def training(dataloader, store_dir, learning_rate, logger, num_epochs=30):
         epoch_loss = running_loss / len(dataloader)
         training_loss.append(epoch_loss)
         end = time.time() - start
-        if inepoch % 50 == 0:
+        if inepoch % 10 == 0:
             torch.save(model.state_dict(), path)
-            logger.info(f'video-prediction \t inepoch: {inepoch} \t loss: {epoch_loss} \t time: {end/60}min')
+            logger.info(f'video-prediction \t inepoch: {inepoch} \t loss: {epoch_loss} \t time: {end}s')
     torch.save(model.state_dict(), path)
     return training_loss
 
