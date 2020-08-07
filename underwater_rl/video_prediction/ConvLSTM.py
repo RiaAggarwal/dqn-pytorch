@@ -144,6 +144,6 @@ class EncoderDecoderConvLSTM(nn.Module):
         h_t4, c_t4 = self.decoder_2_convlstm.init_hidden(batch_size=b, image_size=(h, w))
 
         # autoencoder forward
-        outputs = self.autoencoder(x, seq_len, future_seq, h_t, c_t, h_t2, c_t2, h_t3, c_t3, h_t4, c_t4)
+        outputs = self.autoencoder(x/255, seq_len, future_seq, h_t, c_t, h_t2, c_t2, h_t3, c_t3, h_t4, c_t4)
 
         return outputs
