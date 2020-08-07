@@ -143,6 +143,26 @@ def optimize_distributional():
     step_optimizer(loss)
 
 
+def optimize_predict():
+    batch, actions, rewards, idxs, weights = memory_sample()
+    non_final_mask, non_final_next_states = mask_non_final(batch)
+    action_batch, reward_batch, state_batch = separate_batches(actions, batch, rewards)     # (batch_size, 4, 84, 84), uint8
+    # predict
+    predict_model = train_pong.load_model(args.store_dir)
+    with torch.no_grad():
+        predicted_state_batch = predict_model(state_batch.unsqueeze(2).float()).squeeze()
+        full_state_batch = torch.cat((state_batch.float(), predicted_state_batch), dim=1)
+        predicted_next_batch = predict_model(non_final_next_states.unsqueeze(2).float()).squeeze()
+        full_next_batch = torch.cat((non_final_next_states.float(), predicted_next_batch), dim=1)
+
+    state_action_values = forward_policy(action_batch, full_state_batch)
+    next_state_values = forward_target(non_final_mask, full_next_batch)
+    expected_state_action_values = (next_state_values * GAMMA) + reward_batch.float()
+
+    loss = get_loss(state_action_values, expected_state_action_values, idxs, weights)
+    step_optimizer(loss)
+    
+
 def forward_policy(action_batch, state_batch):
     return policy_net(state_batch).gather(1, action_batch)
 
@@ -224,8 +244,8 @@ def main_training_loop(n_episodes, render_mode=False):
     for episode in range(1, n_episodes + 1):
         train_episode(episode, render_mode, save_dir)
         if args.train_prediction and episode > n_episodes//100:
-            if episode%10 == 1:
-                logger.info(f'Start training prediction on {device} in episode {episode}')
+            if episode%20 == 1:
+                logger.info(f'Start training prediction on {device} in episode {episode}~{episode+19}')
             train_prediction()
     env.close()
     finish_rendering(render_mode, save_dir)
@@ -300,6 +320,8 @@ def dispatch_optimize(episode):
         if steps_done > INITIAL_MEMORY and len(memory) >= BATCH_SIZE:
             if architecture == 'distribution_dqn':
                 optimize_distributional()
+            elif architecture == 'predict_dqn':
+                optimize_predict()
             else:
                 optimize_model()
 
@@ -500,6 +522,7 @@ def get_models(architecture, n_actions):
                     soft_dqn,
                     dueling_dqn,
                     distribution_dqn,
+                    predict_dqn,
                     lstm,
                     Resnet:
                         resnet18,
