@@ -407,6 +407,10 @@ def dispatch_render(env, mode, save_dir):
 def train_prediction():
     train_loader = train_pong.train_dataloader(replay=memory)
     training_loss = train_pong.training(dataloader=train_loader, store_dir=args.store_dir, learning_rate=LR, logger=logger)
+    
+def test_prediction():
+    test_loader = train_pong.test_dataloader(replay=memory)
+    training_loss = train_pong.testing(dataloader=test_loader, store_dir=args.store_dir)
 
 def get_logger(store_dir):
     log_path = os.path.join(store_dir, 'output.log')
