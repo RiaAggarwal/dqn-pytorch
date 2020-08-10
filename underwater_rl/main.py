@@ -240,7 +240,7 @@ def main_training_loop(n_episodes, render_mode=False):
     save_dir = os.path.join(args.store_dir, 'video')
     
     if args.train_prediction:
-        train_pong.initial(args.store_dir)
+        train_pong.initial(args.store_dir, logger=logger)
     for episode in range(1, n_episodes + 1):
         train_episode(episode, render_mode, save_dir)
         if args.train_prediction and episode > n_episodes//100:

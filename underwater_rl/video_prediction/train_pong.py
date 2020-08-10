@@ -16,11 +16,10 @@ from .utils import create_array, generate_video
 
 Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
 
-def initial(store_dir):
+def initial(store_dir, logger):
     model = EncoderDecoderConvLSTM(nf=64, in_chan=1)
-    if torch.cuda.device_count() > 1:
-        torch.cuda.manual_seed_all(seed=1234)
-        model = nn.DataParallel(model)
+    logger.info("Let's use", torch.cuda.device_count(), "GPUs!")
+    model = nn.DataParallel(model)
     path = os.path.join(store_dir, 'pred.pth.tar')
     torch.save(model.state_dict(), path)
     
@@ -31,9 +30,7 @@ def training(dataloader, store_dir, learning_rate, logger, num_epochs=200):
     path = os.path.join(store_dir, 'pred.pth.tar')
     criterion=nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    if torch.cuda.device_count() > 1:
-        torch.cuda.manual_seed_all(seed=1234)
-        model = nn.DataParallel(model)
+    model = nn.DataParallel(model)
     model.load_state_dict(torch.load(path))
     model.to(device)
     # train
@@ -43,7 +40,7 @@ def training(dataloader, store_dir, learning_rate, logger, num_epochs=200):
         running_loss = 0
         for batch in dataloader:            # (10,8,84,84)
             batch = batch.unsqueeze(2).to(device)           # (b, t, c, h, w)  (10, 8, 1, 84, 84)
-            x, y = batch[:, 0:4, :, :, :].float(), batch[:, 4:8, :, :, :].float().squeeze()
+            x, y = batch[:, 0:4, :, :, :].float()/255, batch[:, 4:8, :, :, :].float().squeeze()/255
             # optimize step
             optimizer.zero_grad()
             y_hat = model(x, future_seq=4).squeeze()
@@ -72,7 +69,7 @@ def testing(dataloader, store_dir):
     with torch.no_grad():
         for batch in dataloader:
             batch = batch.unsqueeze(2).to(device)
-            x, y = batch[:, 0:4, :, :, :].float(), batch[:, 4:8, :, :, :].float().squeeze()
+            x, y = batch[:, 0:4, :, :, :].float()/255, batch[:, 4:8, :, :, :].float().squeeze()/255
             y_hat = model(x, future_seq=4).squeeze()
             testing_loss = criterion(y_hat, y)
             video_frames = create_array(y_hat, y)
@@ -88,7 +85,7 @@ def train_dataloader(replay, batch_size=10):
     train_data = torch.cat((state,next_state), dim=1)   # (sample_size=2000,8,84,84)
     train_loader = torch.utils.data.DataLoader(
         dataset=train_data,
-        batch_size=batch_size,
+        batch_size=batch_size*torch.cuda.device_count(),
         shuffle=False)
     return train_loader
 
@@ -100,7 +97,7 @@ def test_dataloader(replay, batch_size=10):
     test_data = torch.cat((state,next_state), dim=1)   # (sample_size=20,8,84,84)
     test_loader = torch.utils.data.DataLoader(
         dataset=test_data,
-        batch_size=batch_size,
+        batch_size=batch_size*torch.cuda.device_count(),
         shuffle=True)
     return test_loader
 
