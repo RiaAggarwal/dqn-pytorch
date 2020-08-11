@@ -1,0 +1,22 @@
+name: pong-underwater-rl
+channels:
+  - powerai
+  - conda-forge
+  - pytorch
+  - defaults
+dependencies:
+  - python 3.7.*
+  - pytorch
+  - torchvision
+  - cpuonly
+  - scipy
+  - numpy
+  - pandas
+  - matplotlib
+  - dash
+  - dash-bootstrap-components
+  - flask-caching
+  - yaml
+  - gym
+
+

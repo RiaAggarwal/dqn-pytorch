@@ -1,0 +1,22 @@
+width: 160
+height: 160
+ball: 3.0
+snell: 4.0
+snell_width: 40.0
+snell_change: 0
+snell_visible: "none"
+paddle_speed: 3.0
+paddle_length: 45
+paddle_angle: 45
+learning_rate: 1e-4
+update_prob: 0.2
+episodes: 4000
+resume:  # comment out to turn off
+checkpoint: ../experiments/60/dqn_pong_model
+history: ../experiments/60/history.p
+network: dqn_pong_model
+#pretrain:  # comment out to turn off
+state: "binary"
+replay: 100_000
+#priority: # comment out to turn off
+#rankbased: # comment out to turn off
